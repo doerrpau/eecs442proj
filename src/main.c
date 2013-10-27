@@ -1,7 +1,5 @@
-#include <opencv2/highgui/highgui.hpp>
-
-using namespace std;
-using namespace cv;
+#include "cv.h"
+#include "highgui.h"
  
 int main(int argc, char** argv)
 {

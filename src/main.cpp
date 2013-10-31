@@ -8,6 +8,7 @@ using namespace cv;
 
 bool drawing_box;
 cv::Rect box;
+Mat orig;
 
 void callMouse(int event,int x,int y,int flags,void* param)
 {
@@ -46,11 +47,35 @@ void callMouse(int event,int x,int y,int flags,void* param)
 
             // Cast input image from void* to Mat*
             cv::Mat* image  = static_cast<cv::Mat *>(param);
+            image->copyTo(orig);
 
             // Draw & show
             rectangle(*image, box,Scalar(255,255,255),1);
+
             imshow("Dog",*image);
-            
+
+            Mat result; // segmentation result (4 possible values)
+            Mat bgModel,fgModel; // the models (internally used)
+
+            // Perform GrabCut segmentation
+            grabCut(*image,    // input image
+                result,   // segmentation result
+                box/*rectangle*/,// rectangle containing foreground 
+                bgModel,fgModel, // models
+                1,        // number of iterations
+                GC_INIT_WITH_RECT); // use rectangle
+            // Get the pixels marked as likely foreground
+            compare(result,GC_PR_FGD,result,CMP_EQ);
+            // Generate output image
+            Mat foreground(image->size(),CV_8UC3,Scalar(255,255,255));
+            image->copyTo(foreground,result); // bg pixels not copied
+         
+            // display result
+            namedWindow("Segmented Dog");
+            imshow("Segmented Dog",foreground);
+
+            orig.copyTo(*image);
+
             break;
         }
         default:
@@ -65,40 +90,10 @@ int main(int argc, char** argv)
 
     namedWindow("Dog");
     imshow("Dog",image);
-
-    // define bounding rectangle
-    int border = 75;
-    int border2 = border + border;
-    cv::Rect rectangle(border,border,image.cols-border2,image.rows-border2);
-    
+  
     setMouseCallback("Dog",callMouse,&image);
 
-    Mat result; // segmentation result (4 possible values)
-    Mat bgModel,fgModel; // the models (internally used)
- 
-    waitKey();
-
-    // Perform GrabCut segmentation
-    grabCut(image,    // input image
-        result,   // segmentation result
-        box/*rectangle*/,// rectangle containing foreground 
-        bgModel,fgModel, // models
-        1,        // number of iterations
-        GC_INIT_WITH_RECT); // use rectangle
-    // Get the pixels marked as likely foreground
-    compare(result,GC_PR_FGD,result,CMP_EQ);
-    // Generate output image
-    Mat foreground(image.size(),CV_8UC3,Scalar(255,255,255));
-    image.copyTo(foreground,result); // bg pixels not copied
- 
-    // draw rectangle on original image
-    //cv::rectangle(image, rectangle, Scalar(255,255,255),1);
-    imshow("Dog",image);
-
-    // display result
-    namedWindow("Segmented Dog");
-    imshow("Segmented Dog",foreground);
-
+    //End program by hitting any key
     waitKey();
     return 0;
 }

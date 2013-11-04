@@ -2,16 +2,74 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include "segm/msImageProcessor.h"
+#include <iostream>
 
 using namespace std;
 using namespace cv;
 
 #define IMAGE_WIDTH 480.0
 
-
 Mat doMeanShift(Mat);
 Mat doKMeans(Mat);
 Mat doGrabCut(Mat, cv::Rect);
+
+bool drawing_box;
+cv::Rect box;
+Mat orig;
+
+void callMouse(int event,int x,int y,int flags,void* param)
+{
+
+    switch( event )
+    {
+        case CV_EVENT_LBUTTONDOWN:
+        {
+            drawing_box=true;
+            box = cvRect( x, y, 0, 0 );
+        }
+            break;
+        case CV_EVENT_MOUSEMOVE:
+        {
+            if( drawing_box )
+            {
+                box.width = x-box.x;
+                box.height = y-box.y;
+            }
+            break;
+        }
+        case CV_EVENT_LBUTTONUP:
+        {   
+            drawing_box=false;
+            if( box.width < 0 )
+            {
+                box.x += box.width;
+                box.width *= -1;
+            }
+
+            if( box.height < 0 )
+            {
+                box.y += box.height;
+                box.height *= -1;
+            }
+
+            // Cast input image from void* to Mat*
+            cv::Mat* image  = static_cast<cv::Mat *>(param);
+            image->copyTo(orig);
+
+            Mat grabCutImg = doGrabCut(*image, box);
+             
+            // display result
+            namedWindow("GrabCut Dog");
+            imshow("GrabCut Dog",grabCutImg);
+
+            orig.copyTo(*image);
+
+            break;
+        }
+        default:
+            break;
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -23,13 +81,6 @@ int main(int argc, char** argv)
     double scale = IMAGE_WIDTH/image.cols;
     resize(image, image, Size(0,0), scale, scale, INTER_AREA); 
 
-    /* Try different methods of image segmentation */
-    /* GrabCut segmentation on the image */
-    /* define bounding rectangle */
-    int border = 60;
-    int border2 = border + border;
-    cv::Rect rectangle(border,border,image.cols-border2,image.rows-border2);
-    Mat grabCutImg = doGrabCut(image, rectangle);
     /* kmeans segmentation on the image */
     Mat kMeansImg = doKMeans(image);
     /* mean shift segmentation on the image */
@@ -38,13 +89,14 @@ int main(int argc, char** argv)
     /* Display the original image and the segmented images */
     namedWindow("Dog");
     imshow("Dog",image);
-    namedWindow("GrabCut Dog");
-    imshow("GrabCut Dog",grabCutImg);
     namedWindow("K Means Dog");
     imshow( "K Means Dog", kMeansImg);
     namedWindow("Mean Shift Dog");
     imshow( "Mean Shift Dog", meanShiftImg); 
+    
+    setMouseCallback("Dog",callMouse,&image);
 
+    //End program by hitting any key
     waitKey();
     return 0;
 }
@@ -92,6 +144,7 @@ Mat doGrabCut(Mat inImg, cv::Rect rectangle)
     /* the models (internally used) */
     Mat bgModel,fgModel;
 
+    cv::rectangle(inImg, rectangle, Scalar(255,255,255),1);
     /* Perform GrabCut segmentation */
     grabCut(inImg, result, rectangle, bgModel, fgModel, 1, GC_INIT_WITH_RECT);
     

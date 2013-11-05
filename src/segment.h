@@ -2,6 +2,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include "segm/msImageProcessor.h"
+#include "graph_seg/segment-image.h"
 #include <iostream>
 
 #ifndef SEGMENT_H
@@ -30,7 +31,6 @@ Mat doGrabCut(Mat inImg, cv::Rect rectangle)
     return foreground;
 }
 
-/* Image Segmentation functions */
 Mat doMeanShift(Mat inImg, int sigmaR, double sigmaS, int minRegion, SpeedUpLevel speedup)
 {
     /* Convert image into 1-dim array of bytes in RGB */
@@ -69,4 +69,34 @@ Mat doMeanShift(Mat inImg, int sigmaR, double sigmaS, int minRegion, SpeedUpLeve
     return new_image;
 }
 
+Mat doGraphCut(Mat inImg, double sigma, double k, int min)
+{
+    /* Convert image into 1-dim array of bytes in RGB */
+    image<rgb> *im = new image<rgb>(inImg.cols, inImg.rows);
+    unsigned char *img_array = new unsigned char[inImg.rows * inImg.cols * 3];
+    for( int y = 0; y < inImg.rows; y++ ) {
+        for( int x = 0; x < inImg.cols; x++ ) {
+            *(imPtr(im, x, y).r) = inImg.at<Vec3b>(y,x)[2];
+            *(imPtr(im, x, y).b) = inImg.at<Vec3b>(y,x)[1];
+            *(imPtr(im, x, y).g) = inImg.at<Vec3b>(y,x)[0];
+        }
+    }
+
+    int num_ccs; 
+    image<rgb> *seg = segment_image(im, sigma, k, min, &num_ccs);
+
+    Mat new_image( inImg.size(), inImg.type() );
+    for( int y = 0; y < inImg.rows; y++ ) {
+        for( int x = 0; x < inImg.cols; x++ ) { 
+            new_image.at<Vec3b>(y,x)[2] = imRef(seg, x, y).r;
+            new_image.at<Vec3b>(y,x)[1] = imRef(seg, x, y).b;
+            new_image.at<Vec3b>(y,x)[0] = imRef(seg, x, y).g;
+        }
+    }
+
+    delete im;
+    delete seg;
+
+    return new_image;
+}
 #endif

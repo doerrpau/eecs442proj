@@ -19,10 +19,16 @@ Mat orig;
 
 char* filename;
 
+/* meanshift parameters */
 int sigmaR = 5;
 double sigmaS = 7.0;
 int minRegion = 100;
 double scale;
+
+/* Efficient graph cut parameters */
+double gs_sigma = 0.5;
+double gs_k = 300.0;
+int gs_min = 400;
 
 /* Function Prototypes */
 Mat doMeanShift(Mat, int, double, int, SpeedUpLevel);
@@ -96,8 +102,8 @@ void callMouse(int event,int x,int y,int flags,void* param)
             drawTextBox(grabCutImg, "I CAN HAZ FRIZBEE?", Scalar(000,000,000),Scalar(255,255,255), Point(box.x, box.height));
 
             // display result
-            namedWindow("GrabCut Dog");
-            imshow("GrabCut Dog",grabCutImg);
+            namedWindow("GrabCut");
+            imshow("GrabCut",grabCutImg);
 
             orig.copyTo(*image);
 
@@ -133,21 +139,26 @@ int main(int argc, char** argv)
     Mat kMeansImg = doKMeans(s_image);
     /* mean shift segmentation on the image */
     Mat meanShiftImg = doMeanShift(s_image, sigmaR, sigmaS, minRegion, ms_speedup);
+    /* graph cut segmentation on the image */
+    Mat graphCutImg = doGraphCut(s_image, gs_sigma, gs_k, gs_min);
     /* Upscale images */
     scale = IMAGE_DISPLAY_WIDTH/meanShiftImg.cols;
     resize(kMeansImg, kMeansImg, Size(0,0), scale, scale);
     resize(meanShiftImg, meanShiftImg, Size(0,0), scale, scale);
+    resize(graphCutImg, graphCutImg, Size(0,0), scale, scale);
     resize(s_image, s_image, Size(0,0), scale, scale);
 
     /* Display the original image and the segmented images */
-    namedWindow("Dog");
-    imshow("Dog",s_image);
-    namedWindow("K Means Dog");
-    imshow( "K Means Dog", kMeansImg);
-    namedWindow("Mean Shift Dog");
-    imshow( "Mean Shift Dog", meanShiftImg); 
+    namedWindow("Image");
+    imshow("Image",s_image);
+    namedWindow("K Means");
+    imshow( "K Means", kMeansImg);
+    namedWindow("Mean Shift");
+    imshow( "Mean Shift", meanShiftImg); 
+    namedWindow("Efficient Graph Cut");
+    imshow( "Efficient Graph Cut", graphCutImg); 
     
-    setMouseCallback("Dog",callMouse,&s_image);
+    setMouseCallback("Image",callMouse,&s_image);
 
     //End program by hitting any key
     waitKey();

@@ -1,21 +1,33 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
-#include "segm/msImageProcessor.h"
 #include <iostream>
+#include "segment.h"
 
 using namespace std;
 using namespace cv;
 
-#define IMAGE_WIDTH 480.0
+/* Global Constants */
+const double IMAGE_WIDTH = 360.0;
+const double IMAGE_DISPLAY_WIDTH = 720.0;
+const SpeedUpLevel ms_speedup = HIGH_SPEEDUP;
 
-Mat doMeanShift(Mat);
-Mat doKMeans(Mat);
-Mat doGrabCut(Mat, cv::Rect);
-
+/* Global Variables */
 bool drawing_box;
 cv::Rect box;
 Mat orig;
+
+char* filename;
+
+int sigmaR = 5;
+double sigmaS = 7.0;
+int minRegion = 100;
+double scale;
+
+/* Function Prototypes */
+Mat doMeanShift(Mat, int, double, int, SpeedUpLevel);
+Mat doKMeans(Mat);
+Mat doGrabCut(Mat, cv::Rect);
 
 void callMouse(int event,int x,int y,int flags,void* param)
 {
@@ -73,28 +85,42 @@ void callMouse(int event,int x,int y,int flags,void* param)
 
 int main(int argc, char** argv)
 {
+    /* Get file to process from arguments */
+    if (argc >= 2) {
+        filename = argv[1];
+    } else {
+        cout << "No filename provided" << endl;
+        return 1;
+    }
+
     /* Load the image */
-    Mat image = imread("../images/dog.jpg", CV_LOAD_IMAGE_COLOR);
+    Mat image = imread(filename, CV_LOAD_IMAGE_COLOR);
 
     /* Scale the image proportionally to standardize processing time */
     /* Probably downscaling, so use pixel area relation interpolation */
+    Mat s_image;
     double scale = IMAGE_WIDTH/image.cols;
-    resize(image, image, Size(0,0), scale, scale, INTER_AREA); 
+    resize(image, s_image, Size(0,0), scale, scale, INTER_AREA); 
 
     /* kmeans segmentation on the image */
-    Mat kMeansImg = doKMeans(image);
+    Mat kMeansImg = doKMeans(s_image);
     /* mean shift segmentation on the image */
-    Mat meanShiftImg = doMeanShift(image);
+    Mat meanShiftImg = doMeanShift(s_image, sigmaR, sigmaS, minRegion, ms_speedup);
+    /* Upscale images */
+    scale = IMAGE_DISPLAY_WIDTH/meanShiftImg.cols;
+    resize(kMeansImg, kMeansImg, Size(0,0), scale, scale);
+    resize(meanShiftImg, meanShiftImg, Size(0,0), scale, scale);
+    resize(s_image, s_image, Size(0,0), scale, scale);
 
     /* Display the original image and the segmented images */
     namedWindow("Dog");
-    imshow("Dog",image);
+    imshow("Dog",s_image);
     namedWindow("K Means Dog");
     imshow( "K Means Dog", kMeansImg);
     namedWindow("Mean Shift Dog");
     imshow( "Mean Shift Dog", meanShiftImg); 
     
-    setMouseCallback("Dog",callMouse,&image);
+    setMouseCallback("Dog",callMouse,&s_image);
 
     //End program by hitting any key
     waitKey();
@@ -133,71 +159,6 @@ Mat doKMeans(Mat inImg)
             new_image.at<Vec3b>(y,x)[2] = centers.at<float>(cluster_idx, 2);
         }
     }
-
-    return new_image;
-}
-
-Mat doGrabCut(Mat inImg, cv::Rect rectangle)
-{   
-    /* segmentation result (4 possible values) */
-    Mat result;
-    /* the models (internally used) */
-    Mat bgModel,fgModel;
-
-    cv::rectangle(inImg, rectangle, Scalar(255,255,255),1);
-    /* Perform GrabCut segmentation */
-    grabCut(inImg, result, rectangle, bgModel, fgModel, 1, GC_INIT_WITH_RECT);
-    
-    /* Get the foreground */
-    compare(result,GC_PR_FGD,result,CMP_EQ);
-    /* Put foreground pixels in the result */
-    Mat foreground(inImg.size(),CV_8UC3,Scalar(255,255,255));
-    inImg.copyTo(foreground,result);
-
-    return foreground;
-}
-
-/* Image Segmentation functions */
-Mat doMeanShift(Mat inImg)
-{
-    /* Convert image into 1-dim array of bytes in RGB */
-    unsigned char *img_array = new unsigned char[inImg.rows * inImg.cols * 3];
-    for( int y = 0; y < inImg.rows; y++ ) {
-        for( int x = 0; x < inImg.cols; x++ ) {
-            for( int z = 0; z < 3; z++) {
-                img_array[y + x*inImg.rows + z] = inImg.at<Vec3b>(y,x)[2-z];
-            }
-        }
-    }
-
-    /* Create meanshift object and put in image data */
-    msImageProcessor meanshift;
-    meanshift.DefineImage(img_array, COLOR, inImg.rows, inImg.cols);
-    
-    /* Mean Shift parameters */
-    int sigmaR = 7;
-    double sigmaS = 12.0;
-    int minRegion = 100;
-    SpeedUpLevel speedup = HIGH_SPEEDUP;
-
-    /* Perform meanshift segmentation */
-    meanshift.Segment(sigmaR, sigmaS, minRegion, speedup);
-
-    /* Get the resulting data and convert into Mat */
-    unsigned char *out_array = new unsigned char[inImg.rows * inImg.cols * 3];
-    meanshift.GetResults(out_array);
-    
-    Mat new_image( inImg.size(), inImg.type() );
-    for( int y = 0; y < inImg.rows; y++ ) {
-        for( int x = 0; x < inImg.cols; x++ ) { 
-            new_image.at<Vec3b>(y,x)[2] = out_array[y + x*inImg.rows + 0];
-            new_image.at<Vec3b>(y,x)[1] = out_array[y + x*inImg.rows + 1];
-            new_image.at<Vec3b>(y,x)[0] = out_array[y + x*inImg.rows + 2];
-        }
-    }
-
-    delete[] img_array;
-    delete[] out_array;
 
     return new_image;
 }

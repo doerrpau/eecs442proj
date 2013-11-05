@@ -7,16 +7,19 @@ using namespace std;
 using namespace cv;
 
 /* Global Constants */
-const double IMAGE_WIDTH = 480.0;
+const double IMAGE_WIDTH = 360.0;
+const double IMAGE_DISPLAY_WIDTH = 720.0;
 const int sigmaR_max = 100;
 const int sigmaS_max = 100;
-const int minRegion_max = 10000;
+const int minRegion_max = 1000;
 const SpeedUpLevel ms_speedup = HIGH_SPEEDUP;
 
 /* Global Variables */
-int sigmaR = 7;
-int sigmaS_slider = 12;
-double sigmaS = 12.0;
+char* filename;
+
+int sigmaR = 5;
+int sigmaS_slider = 7;
+double sigmaS = 7.0;
 int minRegion = 100;
 double scale;
 Mat image;
@@ -30,8 +33,16 @@ void do_trackbars(int, void*);
 
 int main(int argc, char** argv)
 {
+    /* Get file to process from arguments */
+    if (argc >= 2) {
+        filename = argv[1];
+    } else {
+        cout << "No filename provided" << endl;
+        return 1;
+    }
+
     /* Load the image */
-    image = imread("../images/dog.jpg", CV_LOAD_IMAGE_COLOR);
+    image = imread(filename, CV_LOAD_IMAGE_COLOR);
 
     /* Scale the image proportionally to standardize processing time */
     /* Probably downscaling, so use pixel area relation interpolation */
@@ -39,13 +50,13 @@ int main(int argc, char** argv)
     resize(image, s_image, Size(0,0), scale, scale, INTER_AREA); 
 
     /* Display the original image and the segmented images */
-    namedWindow("Dog");
-    imshow("Dog",image);
-    namedWindow("Mean Shift Dog");
+    //namedWindow("Dog");
+    //imshow("Dog",image);
+    namedWindow("Mean Shift");
 
-    createTrackbar("SigmaR", "Mean Shift Dog", &sigmaR, sigmaR_max, do_trackbars);
-    createTrackbar("SigmaS", "Mean Shift Dog", &sigmaS_slider, sigmaS_max, do_trackbars);
-    createTrackbar("Min Region", "Mean Shift Dog", &minRegion, minRegion_max, do_trackbars);
+    createTrackbar("SigmaR", "Mean Shift", &sigmaR, sigmaR_max, do_trackbars);
+    createTrackbar("SigmaS", "Mean Shift", &sigmaS_slider, sigmaS_max, do_trackbars);
+    createTrackbar("Min Region", "Mean Shift", &minRegion, minRegion_max, do_trackbars);
 
     /* Inital display */
     do_trackbars(sigmaR, 0);
@@ -64,9 +75,10 @@ void do_trackbars(int, void*)
     Mat meanShiftImg = doMeanShift(s_image, sigmaR, sigmaS, minRegion, ms_speedup);
 
     /* Upscale image */
-    resize(meanShiftImg, meanShiftImg, Size(0,0), 1.0/scale, 1.0/scale);
+    scale = IMAGE_DISPLAY_WIDTH/meanShiftImg.cols;
+    resize(meanShiftImg, meanShiftImg, Size(0,0), scale, scale);
 
-    imshow( "Mean Shift Dog", meanShiftImg);
+    imshow( "Mean Shift", meanShiftImg);
 }
 
 /* Image Segmentation functions */
@@ -77,7 +89,7 @@ Mat doMeanShift(Mat inImg, int sigmaR, double sigmaS, int minRegion, SpeedUpLeve
     for( int y = 0; y < inImg.rows; y++ ) {
         for( int x = 0; x < inImg.cols; x++ ) {
             for( int z = 0; z < 3; z++) {
-                img_array[y + x*inImg.rows + z] = inImg.at<Vec3b>(y,x)[2-z];
+                img_array[3*(x + y*inImg.cols) + z] = inImg.at<Vec3b>(y,x)[2-z];
             }
         }
     }
@@ -96,9 +108,9 @@ Mat doMeanShift(Mat inImg, int sigmaR, double sigmaS, int minRegion, SpeedUpLeve
     Mat new_image( inImg.size(), inImg.type() );
     for( int y = 0; y < inImg.rows; y++ ) {
         for( int x = 0; x < inImg.cols; x++ ) { 
-            new_image.at<Vec3b>(y,x)[2] = out_array[y + x*inImg.rows + 0];
-            new_image.at<Vec3b>(y,x)[1] = out_array[y + x*inImg.rows + 1];
-            new_image.at<Vec3b>(y,x)[0] = out_array[y + x*inImg.rows + 2];
+            new_image.at<Vec3b>(y,x)[2] = out_array[3*(x + y*inImg.cols) + 0];
+            new_image.at<Vec3b>(y,x)[1] = out_array[3*(x + y*inImg.cols) + 1];
+            new_image.at<Vec3b>(y,x)[0] = out_array[3*(x + y*inImg.cols) + 2];
         }
     }
 

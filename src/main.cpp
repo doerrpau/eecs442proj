@@ -29,19 +29,34 @@ Mat doMeanShift(Mat, int, double, int, SpeedUpLevel);
 Mat doKMeans(Mat);
 Mat doGrabCut(Mat, cv::Rect);
 
+void drawTextBox(Mat img, String text, Scalar bgColor,Scalar fgColor, Point coords)
+{
+    int scale = 1;
+    // Draw a text box on image
+    // Note about locations: putText draws from lower left corner, while rectangle does verticies
+    // Note about color: it's BGR, not RGB
+
+    rectangle(img, coords,Point(coords.x+text.length()*19.5*scale,coords.y+50*scale), bgColor, -1, 8, 0);
+    putText(img, text, Point(coords.x+5,coords.y+25), FONT_HERSHEY_TRIPLEX, scale, fgColor,2, 8,false);
+}
+
 void callMouse(int event,int x,int y,int flags,void* param)
 {
 
     switch( event )
     {
+        // Event handling
         case CV_EVENT_LBUTTONDOWN:
         {
+            // Start drawing box
             drawing_box=true;
             box = cvRect( x, y, 0, 0 );
-        }
             break;
+        }
+
         case CV_EVENT_MOUSEMOVE:
         {
+            // Alter box box params
             if( drawing_box )
             {
                 box.width = x-box.x;
@@ -51,6 +66,7 @@ void callMouse(int event,int x,int y,int flags,void* param)
         }
         case CV_EVENT_LBUTTONUP:
         {   
+            // Finish drawing box
             drawing_box=false;
             if( box.width < 0 )
             {
@@ -68,8 +84,17 @@ void callMouse(int event,int x,int y,int flags,void* param)
             cv::Mat* image  = static_cast<cv::Mat *>(param);
             image->copyTo(orig);
 
+            // Draw & show
+            rectangle(*image, box,Scalar(255,255,255),1);
+
+            // Reshow image
+            imshow("Dog",*image);
+
             Mat grabCutImg = doGrabCut(*image, box);
-             
+            
+            // Adding text above segmentation
+            drawTextBox(grabCutImg, "I CAN HAZ FRIZBEE?", Scalar(000,000,000),Scalar(255,255,255), Point(box.x, box.height));
+
             // display result
             namedWindow("GrabCut Dog");
             imshow("GrabCut Dog",grabCutImg);
@@ -79,6 +104,8 @@ void callMouse(int event,int x,int y,int flags,void* param)
             break;
         }
         default:
+            drawing_box=false;
+            box = cvRect( x, y, 0, 0 );
             break;
     }
 }

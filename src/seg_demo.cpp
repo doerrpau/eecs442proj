@@ -30,11 +30,6 @@ double gs_sigma = 0.5;
 double gs_k = 300.0;
 int gs_min = 400;
 
-/* Function Prototypes */
-Mat doMeanShift(Mat, int, double, int, SpeedUpLevel);
-Mat doKMeans(Mat);
-Mat doGrabCut(Mat, cv::Rect);
-
 void drawTextBox(Mat img, String text, Scalar bgColor,Scalar fgColor, Point coords)
 {
     int scale = 1;
@@ -163,40 +158,4 @@ int main(int argc, char** argv)
     //End program by hitting any key
     waitKey();
     return 0;
-}
-
-Mat doKMeans(Mat inImg)
-{
-    /* Format image array for kmeans */
-    Mat samples(inImg.rows * inImg.cols, 3, CV_32F);
-    for( int y = 0; y < inImg.rows; y++ ) {
-        for( int x = 0; x < inImg.cols; x++ ) {
-            for( int z = 0; z < 3; z++) {
-                samples.at<float>(y + x*inImg.rows, z) = inImg.at<Vec3b>(y,x)[z];
-            }
-        }
-    }
-
-    /* Setup kmeans parameters */
-    int clusterCount = 5;
-    Mat labels;
-    int attempts = 5;
-    Mat centers;
-
-    /* kmeans clustering */
-    kmeans(samples, clusterCount, labels, TermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.0001), 
-        attempts, KMEANS_PP_CENTERS, centers );
-
-    /* Get kmeans image */
-    Mat new_image( inImg.size(), inImg.type() );
-    for( int y = 0; y < inImg.rows; y++ ) {
-        for( int x = 0; x < inImg.cols; x++ ) { 
-            int cluster_idx = labels.at<int>(y + x*inImg.rows,0);
-            new_image.at<Vec3b>(y,x)[0] = centers.at<float>(cluster_idx, 0);
-            new_image.at<Vec3b>(y,x)[1] = centers.at<float>(cluster_idx, 1);
-            new_image.at<Vec3b>(y,x)[2] = centers.at<float>(cluster_idx, 2);
-        }
-    }
-
-    return new_image;
 }

@@ -18,6 +18,54 @@ double gs_sigma = 0.5;
 double gs_k = 300.0;
 int gs_min = 400;
 
+void storeTable()
+{
+  // Store proabaility data to a csv file
+  int i,j = 0;
+
+  ofstream table;
+  table.open("probTable.csv","w");
+  
+  if(table.is_open())
+  {
+    // Go over each word
+    for(i=0;i<;i++)
+    {
+      table << "WORD" << ",";
+
+      // Go over each blob
+      for(j=0;j<;j++)
+      {
+        table << "BLOB PROBABILITY">>",";
+      }
+        table.write("\n");
+    }
+  }
+
+  table.close();
+}
+
+void readTable()
+{
+  //Read csv file for words and blob probabilities
+  ifstream table;
+  int i,j=0;
+  string nums;  // String that holds numbers separated by commas
+  
+  table.open();
+
+  while(!=)
+  {
+    table >> word;
+    for(j=0;i<;j++) 
+    {
+      table >> prob[i][j];
+    }
+    i++;
+  }
+  table.close();
+}
+
 Mat train(char* img_dir)
 {
     /* Load the image */

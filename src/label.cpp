@@ -18,6 +18,9 @@ double gs_sigma = 0.5;
 double gs_k = 300.0;
 int gs_min = 400;
 
+/* Vector quantization parameters */
+int vq_k = 100;
+
 void drawTextBox(Mat img, String text, Scalar bgColor,Scalar fgColor, Point coords)
 {
     int scale = 1;

@@ -6,7 +6,10 @@
 #ifndef TABLE_IO_H
 #define TABLE_IO_H
 
-void storeTable(Mat pTable, vector<string> words)
+using namespace std;
+using namespace cv;
+
+void storeTable(Mat pTable, vector<string> words, const char* filename)
 {
   // Store proabaility data to a csv file
   // pTable is a matrix with all probabilites
@@ -14,7 +17,7 @@ void storeTable(Mat pTable, vector<string> words)
   // words is a vector of strings that holds the words
   
   int i,j = 0;
-  ofstream table("probTable.csv",ofstream::out);
+  ofstream table(filename, ofstream::out);
   
   int numCols = pTable.cols;
   int numRows = pTable.rows;
@@ -37,25 +40,33 @@ void storeTable(Mat pTable, vector<string> words)
   table.close();
 }
 
-void readTable(Mat pTable, string words[])
+void readTable(Mat &pTable, vector<string> &words, const char* filename)
 {
   //Read csv file for words and blob probabilities
 
   string nums;  // String that holds numbers separated by commas
-  int i,j,k,len,numWords,numBlobs=0;
-  ifstream table("probTable.csv", ifstream::in);
+  int i = 0;
+  int j = 0;
+  int k = 0;
+  int len = 0;
+  int numWords = 0;
+  int numBlobs=0;
+  ifstream table(filename, ifstream::in);
   bool foundSize,foundWord = false;
 
   // First line has number of words, then number of blobs
   getline(table,nums);
-  k = nums.at(',');
-  numWords = atoi(nums.substr(0,k-1).c_str());
+  k = nums.find(",");
+  numWords = atoi(nums.c_str());
 
   //Remove data at front of string
+  len = nums.length();
   nums = nums.substr(k+1,len-1);
   len = nums.length();
   
-  numBlobs = atoi(nums.substr(0,len-2).c_str());
+  numBlobs = atoi(nums.c_str());
+
+  pTable = Mat::zeros(numWords, numBlobs, CV_64F);
 
   // Parse rest of table for words & blobs
   // FIX ME?
@@ -70,16 +81,17 @@ void readTable(Mat pTable, string words[])
       // Get the word at beginning of line
       if(!foundWord)
       {
-        k=nums.at(',');
-        words[0] = nums.substr(0,k);
+        k=nums.find(",");
+        words.push_back(nums.substr(0,k));
         nums = nums.substr(k+1,len-1);
         len = nums.length();
         foundWord=true;
       }
       else
       {
-        k = nums.at(',');
-        pTable.at<double>(i,j) = atof(nums.substr(j,k-j).c_str());
+        k = nums.find(",");
+        string temp = nums.substr(0,k);
+        pTable.at<double>(i,j) = atof(temp.c_str());
         nums = nums.substr(k+1,len-1);
         len = nums.length();
         j++;

@@ -439,10 +439,10 @@ Mat train(char* img_dir)
             /* If the segment is in this image */
             if (all_feats[f]->imgId = i) {
                 /* add blob ID to current image */
-                img_data[i]->blobs.push_back(labels.at<int>(f,0));
+                img_data[i].blobs.push_back(labels.at<int>(f,0));
                 /* add word IDs to current image */
-                if (img_data[i]->words.empty()) {
-                    img_data[i]->words.insert(img_data[i]->words.end(), 
+                if (img_data[i].words.empty()) {
+                    img_data[i].words.insert(img_data[i].words.end(), 
                                             all_feats[f]->blob_labels.begin(),
                                             all_feats[f]->blob_labels.end());
                 }
@@ -450,8 +450,13 @@ Mat train(char* img_dir)
         }
 
         /* Allocate the probability tables */
-        img_data[i].pTable = new double[vq_k][img_labels.size()];
-        img_data[i].tTable = new double[vq_k][img_labels.size()];
+        int num_words = img_labels.size();
+        img_data[i].tTable = new double*[vq_k];
+        img_data[i].pTable = new double*[vq_k];
+        for (int p = 0; p < vq_k; p++) {
+            img_data[i].pTable[p] = new double[num_words];
+            img_data[i].tTable[p] = new double[num_words];
+        }
     }
 
     Mat result;

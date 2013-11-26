@@ -2,15 +2,13 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#include <fstream>
 #include <boost/filesystem.hpp>
 #include <unistd.h>
 #include <cstdio>
 #include <cmath>
 #include <vector>
-<<<<<<< HEAD
-=======
 #include <list>
->>>>>>> fc8b4ced0b6f4eda81c93168683c6cfb7b8d715b
 #include <string>
 #include "segment.h"
 
@@ -242,7 +240,6 @@ vector<BlobFeat*> getBlobFeatures(Mat &orig_img, Mat &seg_img, int min_size, vec
     return features; 
 }
 
-<<<<<<< HEAD
 void storeTable(Mat pTable, vector<string> words)
 {
   // Store proabaility data to a csv file
@@ -250,10 +247,11 @@ void storeTable(Mat pTable, vector<string> words)
   // Each row corresponds to one word
   // words is a vector of strings that holds the words
   
-  int i,j,numCols,numRows = 0;
-  ofstream table("probTable.csv");
+  int i,j = 0;
+  ofstream table("probTable.csv",ofstream::out);
   
-  pTable.size(numCols,numRows);
+  int numCols = pTable.cols;
+  int numRows = pTable.rows;
 
   table << numRows << "," << numCols <<"\n";
 
@@ -265,7 +263,7 @@ void storeTable(Mat pTable, vector<string> words)
     // Save each conditional probabililty p(w|b)
     for(j=0;j<numCols;j++)
     {
-      table << pTable[i][j] <<",";
+      table << pTable.at<double>(i,j) <<",";
     }
       table<<"\n";
   }
@@ -279,19 +277,19 @@ void readTable(Mat pTable, string words[])
 
   string nums;  // String that holds numbers separated by commas
   int i,j,k,len,numWords,numBlobs=0;
-  ifstream table("probTable.csv");
+  ifstream table("probTable.csv", ifstream::in);
   bool foundSize,foundWord = false;
 
   // First line has number of words, then number of blobs
   getline(table,nums);
   k = nums.at(',');
-  numWords = atoi(nums.substr(0,k-1));
+  numWords = atoi(nums.substr(0,k-1).c_str());
 
   //Remove data at front of string
   nums = nums.substr(k+1,len-1);
   len = nums.length();
   
-  numBlobs = atoi(nums.substr(0,len-2));
+  numBlobs = atoi(nums.substr(0,len-2).c_str());
 
   // Parse rest of table for words & blobs
   // FIX ME?
@@ -315,7 +313,7 @@ void readTable(Mat pTable, string words[])
       else
       {
         k = nums.at(',');
-        pTable[i][j] = atof(nums.substr(j,k-j));
+        pTable.at<double>(i,j) = atof(nums.substr(j,k-j).c_str());
         nums = nums.substr(k+1,len-1);
         len = nums.length();
         j++;
@@ -329,12 +327,10 @@ void readTable(Mat pTable, string words[])
   return;
 }
 
-=======
 /* Iterate through the images in the directory and do segmentation */
 /* Get blob features for each segment */
 /* k-means to vector quantize the segments into smaller set of blobs */
 /* use keywords recorded for each blob to find probability table */
->>>>>>> fc8b4ced0b6f4eda81c93168683c6cfb7b8d715b
 Mat train(char* img_dir)
 {
 

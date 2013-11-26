@@ -144,8 +144,9 @@ Mat train(char* img_dir)
     Mat labels = blobVectorization(all_feats, vq_k); /* labels is CV_32S */
 
     /* Use features and labels to create image data structures */
-    imgData* img_data = new imgData[num_images];
+    vector<imgData> img_data;
     for (int i = 0; i < num_images; i++) {
+        img_data.push_back(imgData());
         for (int f = 0; f < all_feats.size(); f++) {
             /* If the segment is in this image */
             if (all_feats[f]->imgId == i) {

@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cmath>
 #include <vector>
+#include <string>
 #include "segment.h"
 
 using namespace std;
@@ -159,52 +160,90 @@ vector<BlobFeat*> getBlobFeatures(Mat &orig_img, Mat &seg_img, int min_size)
     
 }
 
-void storeTable()
+void storeTable(Mat pTable, vector<string> words)
 {
   // Store proabaility data to a csv file
-  int i,j = 0;
-
-  ofstream table;
-  table.open("probTable.csv","w");
+  // pTable is a matrix with all probabilites
+  // Each row corresponds to one word
+  // words is a vector of strings that holds the words
   
-  if(table.is_open())
-  {
-    // Go over each word
-    for(i=0;i<;i++)
-    {
-      table << "WORD" << ",";
+  int i,j,numCols,numRows = 0;
+  ofstream table("probTable.csv");
+  
+  pTable.size(numCols,numRows);
 
-      // Go over each blob
-      for(j=0;j<;j++)
-      {
-        table << "BLOB PROBABILITY">>",";
-      }
-        table.write("\n");
+  table << numRows << "," << numCols <<"\n";
+
+  // Save each word
+  for(i=0;i<words.size();i++)
+  {
+    table << words[i] << ",";
+
+    // Save each conditional probabililty p(w|b)
+    for(j=0;j<numCols;j++)
+    {
+      table << pTable[i][j] <<",";
     }
+      table<<"\n";
   }
 
   table.close();
 }
 
-void readTable()
+void readTable(Mat pTable, string words[])
 {
   //Read csv file for words and blob probabilities
-  ifstream table;
-  int i,j=0;
-  string nums;  // String that holds numbers separated by commas
-  
-  table.open();
 
-  while(!=)
-  {
-    table >> word;
-    for(j=0;i<;j++) 
+  string nums;  // String that holds numbers separated by commas
+  int i,j,k,len,numWords,numBlobs=0;
+  ifstream table("probTable.csv");
+  bool foundSize,foundWord = false;
+
+  // First line has number of words, then number of blobs
+  getline(table,nums);
+  k = nums.at(',');
+  numWords = atoi(nums.substr(0,k-1));
+
+  //Remove data at front of string
+  nums = nums.substr(k+1,len-1);
+  len = nums.length();
+  
+  numBlobs = atoi(nums.substr(0,len-2));
+
+  // Parse rest of table for words & blobs
+  // FIX ME?
+  while(getline(table,nums))
+  {  
+    len= nums.length(); //Get line's length
+    j=0;                //Blob counter
+
+    //Parse line
+    while(j<numBlobs) 
     {
-      table >> prob[i][j];
+      // Get the word at beginning of line
+      if(!foundWord)
+      {
+        k=nums.at(',');
+        words[0] = nums.substr(0,k);
+        nums = nums.substr(k+1,len-1);
+        len = nums.length();
+        foundWord=true;
+      }
+      else
+      {
+        k = nums.at(',');
+        pTable[i][j] = atof(nums.substr(j,k-j));
+        nums = nums.substr(k+1,len-1);
+        len = nums.length();
+        j++;
+      }
     }
     i++;
+    foundWord=false;
   }
   table.close();
+
+  return;
 }
 
 Mat train(char* img_dir)

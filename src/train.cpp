@@ -174,7 +174,7 @@ Mat train(char* img_dir)
 
      //=======================||[ EM Algorithm ]||============================//
     //Mat result;
-    Mat probTable = ones( img_labels.size(), vq_k,CV_32F);
+    Mat probTable = Mat::zeros( img_labels.size(), vq_k,CV_32F);
     double smallChange = 10^(-4);
     double change = 10000;
     
@@ -182,7 +182,7 @@ Mat train(char* img_dir)
     double sumP,sumT=0;
 
     // Get words and blobs for each image
-    N =  img_data.size()
+    N =  img_data.size();
    
     //============================ Init =======================================
     // Go over each image and fill in initial probabilities
@@ -194,7 +194,7 @@ Mat train(char* img_dir)
             for(int i=0;i<img_data[n].blobs.size();i++)
             {
                 img_data[n].pTable[j][i] = img_data[n].words.size()/img_data[n].blobs.size();
-                img_data[n].tTablep[j][i] = 1/img_data[n].words.size();
+                img_data[n].tTable[j][i] = 1/img_data[n].words.size();
             }
         }
     }
@@ -209,25 +209,30 @@ Mat train(char* img_dir)
         // Calculate p_tild(a_nj|w_nj,b_nj,old params) for each image over all
         // words and blobs
 
-        for(n=0;n<N;n++)
+        for(int n=0;n<N;n++)
         {
             sumP = 0;//for each image
 
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
-            for(j=0;j<m;j++)
+            for(int j=0;j<m;j++)
             {
-                for(i=0;i<l;i++)
+                for(int i=0;i<l;i++)
                 {
                     //for each word/blob
                     pTemp[n][j][i] = img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
                     sumP+=pTemp[n][j][i];
                 }
             }
-
-            // Normalize p_tild(a_nj|w_nj,b_nj,old params)
-            pTemp[n][j][i]/=sumP;
+            for(int j=0;j<m;j++)
+            {
+                for(int i=0;i<l;i++)
+                {
+                    // Normalize p_tild(a_nj|w_nj,b_nj,old params)
+                    pTemp[n][j][i]/=sumP;
+                }
+            }
         }
         //============================ End E Step =================================//
 
@@ -237,14 +242,14 @@ Mat train(char* img_dir)
         // of the same size
 
         //for each image set
-        for(n=0;n<N;n++)
+        for(int n=0;n<N;n++)
         {
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
-            for(j=0;j<m;j++)
+            for(int j=0;j<m;j++)
             {
-                for(i=0;i<l;i++)
+                for(int i=0;i<l;i++)
                 {
                     //Go over each image with same size
                     countNlm = 0;
@@ -282,14 +287,14 @@ Mat train(char* img_dir)
         // |M.2 & M.3|
         // Get t_tild(w_nj=w*|b_ni=b*) by looing for pairs (w*,b*) that appear
         // in same image...may just be unique assignment
-        for(n=0;n<N;n++)
+        for(int n=0;n<N;n++)
         {
             sumT=0;
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
             //for each word/blob pair
-            for(j=0;j<m;j++)
+            for(int j=0;j<m;j++)
             {
                 for(i=0;i<l;i++)
                 {
@@ -309,7 +314,7 @@ Mat train(char* img_dir)
                             for(int ii=0;ii<img_data[nn].blobs.size();ii++)
                             {
                                 // See if blob is in image
-                                if(img_data[nn].blobs[jii]!=img_data[n].blobs[i])
+                                if(img_data[nn].blobs[ii]!=img_data[n].blobs[i])
                                 {
                                     continue;
                                 }
@@ -324,9 +329,9 @@ Mat train(char* img_dir)
             }
 
             //for each word/blob pair
-            for(j=0;j<img_data[n].words.size();j++)
+            for(int j=0;j<img_data[n].words.size();j++)
             {
-                for(i=0;i<img_data[n].blobs.size();i++)
+                for(int i=0;i<img_data[n].blobs.size();i++)
                 {
                     // Normalize t_tild(w_nj=w*|b_ni=b*) over each image
                     img_data[n].tTable[j][i]/=sumT;
@@ -344,18 +349,18 @@ Mat train(char* img_dir)
     double prod1,prod2 = 1;
     double sum1 = 0;
 
-    for(int w=0;w<totNumWords;w++)
+    for(int w=0;w<img_labels.size();w++)
     {
-        for(int b=0;b<totNumBlobs;b++)
+        for(int b=0;b<vq_k;b++)
         {
             prod1=1;
-            for(int n=0;n<numImages;n++)
+            for(int n=0;n<N;n++)
             {
                 prod2=1;
-                for(int j=0;j<images[n].words.size;j++)
+                for(int j=0;j<images[n].words.size();j++)
                 {
                     sum1=0;
-                    for(int i=0;j<images[n].blobs.size;i++)
+                    for(int i=0;j<images[n].blobs.size();i++)
                     {
                         //If the blob b is in the image, add it to the sum
                         // (it's zero otherwise)

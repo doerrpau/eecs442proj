@@ -29,7 +29,7 @@ int main()
 	//============================ End Init ====================================
 
 	//================================ EM ======================================
-	while(smallChange < change || iter <2)
+	while(smallChange < change && iter <2)
 	{
 		//CONVERGENCE OR #ITER
 

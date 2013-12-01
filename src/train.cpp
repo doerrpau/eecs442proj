@@ -163,8 +163,8 @@ Mat train(char* img_dir)
         }
 
         /* Allocate the probability tables */
-        img_data[i].pTable[p] = new double*[img_data[i].words.size()];
-        img_data[i].tTable[p] = new double*[img_data[i].words.size()];
+        img_data[i].pTable = new double*[img_data[i].words.size()];
+        img_data[i].tTable = new double*[img_data[i].words.size()];
         for (int p = 0; p < img_data[i].words.size(); p++) {
             img_data[i].pTable[p] = new double[img_data[i].blobs.size()];
             img_data[i].tTable[p] = new double[img_data[i].blobs.size()];

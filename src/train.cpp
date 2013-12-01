@@ -198,6 +198,24 @@ Mat train(char* img_dir)
             }
         }
     }
+
+    vector<double**> pTemp;
+    pTemp.resize(N);
+    
+    /* Allocate pTemp */
+    for(int n=0;n<N;n++)
+    {
+        m = img_data[n].words.size();
+        l = img_data[n].blobs.size();
+
+        pTemp[n] = new double*[m];
+
+        for(int j=0;j<m;j++)
+        {
+            pTemp[n][j] = new double[l];
+        }
+    }
+
     //============================ End Init ====================================
 
     //================================ EM ======================================
@@ -216,21 +234,24 @@ Mat train(char* img_dir)
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
-            for (int j=0;j<m;j++)
+            pTemp[n] = new double*[m];
+
+            for(int j=0;j<m;j++)
             {
-                for (int i=0;i<l;i++)
+                pTemp[n][j] = new double[l];
+
+                for(int i=0;i<l;i++)
                 {
                     //for each word/blob
                     pTemp[n][j][i] = img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
                     sumP+=pTemp[n][j][i];
                 }
             }
-
-            // Normalize p_tild(a_nj|w_nj,b_nj,old params)
-            for (int j=0;j<m;j++)
+            for(int j=0;j<m;j++)
             {
-                for (int i=0;i<l;i++)
+                for(int i=0;i<l;i++)
                 {
+                    // Normalize p_tild(a_nj|w_nj,b_nj,old params)
                     pTemp[n][j][i]/=sumP;
                 }
             }
@@ -243,17 +264,17 @@ Mat train(char* img_dir)
         // of the same size
 
         //for each image set
-        for (int n=0;n<N;n++)
+        for(int n=0;n<N;n++)
         {
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
-            for (int j=0;j<m;j++)
+            for(int j=0;j<m;j++)
             {
-                for(i=0;i<l;i++)
+                for(int i=0;i<l;i++)
                 {
                     //Go over each image with same size
-                    countNlm = 0;
+                    int countNlm = 0;
                     sumP = 0;
                     for(int nn =0;nn<N;nn++)
                     {
@@ -288,16 +309,16 @@ Mat train(char* img_dir)
         // |M.2 & M.3|
         // Get t_tild(w_nj=w*|b_ni=b*) by looing for pairs (w*,b*) that appear
         // in same image...may just be unique assignment
-        for (int n=0;n<N;n++)
+        for(int n=0;n<N;n++)
         {
             sumT=0;
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
             //for each word/blob pair
-            for (int j=0;j<m;j++)
+            for(int j=0;j<m;j++)
             {
-                for(i=0;i<l;i++)
+                for(int i=0;i<l;i++)
                 {
 
                     sumP=0;
@@ -330,9 +351,9 @@ Mat train(char* img_dir)
             }
 
             //for each word/blob pair
-            for (int j=0;j<img_data[n].words.size();j++)
+            for(int j=0;j<img_data[n].words.size();j++)
             {
-                for(i=0;i<img_data[n].blobs.size();i++)
+                for(int i=0;i<img_data[n].blobs.size();i++)
                 {
                     // Normalize t_tild(w_nj=w*|b_ni=b*) over each image
                     img_data[n].tTable[j][i]/=sumT;
@@ -344,30 +365,46 @@ Mat train(char* img_dir)
         iter++;
     }
 
+    /* Delete pTemp */
+    for(int n=0;n<N;n++)
+    {
+        m = img_data[n].words.size();
+        l = img_data[n].blobs.size();
+
+        for(int j=0;j<m;j++)
+        {
+            delete[] pTemp[n][j];
+
+        }
+
+        delete[] pTemp[n];
+    }
+
+
     cout << "Change after iteration" <<change <<"\n";
 
     // Calculate final probability table
     double prod1,prod2 = 1;
     double sum1 = 0;
 
-    for(int w=0;w<totNumWords;w++)
+    for(int w=0;w<img_labels.size();w++)
     {
-        for(int b=0;b<totNumBlobs;b++)
+        for(int b=0;b<vq_k;b++)
         {
             prod1=1;
-            for(int n=0;n<numImages;n++)
+            for(int n=0;n<N;n++)
             {
                 prod2=1;
-                for(int j=0;j<images[n].words.size;j++)
+                for(int j=0;j<img_data[n].words.size();j++)
                 {
                     sum1=0;
-                    for(int i=0;j<images[n].blobs.size;i++)
+                    for(int i=0;j<img_data[n].blobs.size();i++)
                     {
                         //If the blob b is in the image, add it to the sum
                         // (it's zero otherwise)
-                        if(b = images[n].blobs[j])
+                        if(b = img_data[n].blobs[j])
                         {
-                            sum1+=images[n].pTable[j][i]*images[n].tTable[j][i];
+                            sum1+=img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
                         }
                     }
 
@@ -375,7 +412,7 @@ Mat train(char* img_dir)
                 }
                 prod1*=prod2;
             }
-            probTable.at<double>[w][b]=prod1;   //Write to probTable matrix
+            probTable.at<double>(w,b)=prod1;   //Write to probTable matrix
         }
     }
 

@@ -183,6 +183,7 @@ Mat train(char* img_dir)
 
     // Get words and blobs for each image
     N =  img_data.size();
+        cout << "debug" <<"\n";
    
     //============================ Init =======================================
     // Go over each image and fill in initial probabilities
@@ -381,7 +382,7 @@ Mat train(char* img_dir)
     }
 
 
-    cout << "Change after iteration" <<change <<"\n";
+    cout << "Change after iteration: " <<change <<"\n";
 
     // Calculate final probability table
     double prod1,prod2 = 1;
@@ -398,12 +399,13 @@ Mat train(char* img_dir)
                 for(int j=0;j<img_data[n].words.size();j++)
                 {
                     sum1=0;
-                    for(int i=0;j<img_data[n].blobs.size();i++)
+                    for(int i=0;i<img_data[n].blobs.size();i++)
                     {
                         //If the blob b is in the image, add it to the sum
                         // (it's zero otherwise)
-                        if(b = img_data[n].blobs[j])
+                        if(b == img_data[n].blobs[j])
                         {
+                            //cout << w << " " << n << " " << j << " " << i << endl;
                             sum1+=img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
                         }
                     }
@@ -412,13 +414,13 @@ Mat train(char* img_dir)
                 }
                 prod1*=prod2;
             }
-            probTable.at<double>(w,b)=prod1;   //Write to probTable matrix
+            probTable.at<float>(w,b)=prod1;   //Write to probTable matrix
         }
     }
 
 
     // Output probabilty table probTable to a file
-
+    cout << probTable << endl;
     return probTable;
     //return result;
 }
@@ -481,6 +483,7 @@ int main(int argc, char** argv)
     Mat ptable = train(img_dir);
 
     /* Save the probability table */
+    storeTable(ptable, img_labels, prob_table);
 
     return 0;
 }

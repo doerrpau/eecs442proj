@@ -195,8 +195,8 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         {
             for(int i=0;i<img_data[n].blobs.size();i++)
             {
-                img_data[n].pTable[j][i] = img_data[n].words.size()/img_data[n].blobs.size();
-                img_data[n].tTable[j][i] = 1/img_data[n].words.size();
+                img_data[n].pTable[j][i] = (double)img_data[n].words.size()/(double)img_data[n].blobs.size();
+                img_data[n].tTable[j][i] = 1.0/(double)img_data[n].words.size();
             }
         }
     }
@@ -423,9 +423,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         }
     }
 
-
-    // Output probabilty table probTable to a file
-    cout << probTable << endl;
+    //cout << probTable << endl;
     return probTable;
     //return result;
 }

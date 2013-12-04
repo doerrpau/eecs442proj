@@ -29,19 +29,38 @@ int seg_min_size = 150;
 /* Word Dictionary learned from training data set */
 vector<string> img_labels;
 
-void drawTextBox(Mat img, String text, Scalar bgColor,Scalar fgColor, Point coords)
+void drawTextBox(Mat &img, String text, Scalar bgColor,Scalar fgColor, Point coords)
 {
-    int scale = 1;
+    double scale = 0.5;
     // Draw a text box on image
     // Note about locations: putText draws from lower left corner, while rectangle does verticies
     // Note about color: it's BGR, not RGB
 
-    rectangle(img, coords,Point(coords.x+text.length()*19.5*scale,coords.y+50*scale), bgColor, -1, 8, 0);
-    putText(img, text, Point(coords.x+5,coords.y+25), FONT_HERSHEY_TRIPLEX, scale, fgColor,2, 8,false);
+    //rectangle(img, coords,Point(coords.x+text.length()*19.5*scale,coords.y+50*scale), bgColor, -1, 8, 0);
+    putText(img, text, Point(coords.x+5,coords.y+25), FONT_HERSHEY_TRIPLEX, scale, fgColor, 1, 8, false);
 }
 
 Mat label(char* filename, Mat prob_table, Mat centers)
 {
+    /* Store highest probability word for each blob type for labeling use */
+    vector<int> blob_words;
+    for (int b = 0; b < prob_table.cols; b++) {
+        double max_prob = 0.0;
+        int best_word = -1;
+        for (int w = 0; w < prob_table.rows; w++) {
+            if (prob_table.at<float>(w, b) > max_prob) {
+                max_prob = prob_table.at<float>(w, b);
+                best_word = w;
+            }
+        }
+        blob_words.push_back(best_word);
+    }
+
+    for (int i = 0; i < blob_words.size(); i++) {
+        cout << blob_words[i] << endl;
+    }
+    cout << img_labels.size() << endl;
+
     /* Load the image */
     Mat image = imread(filename, CV_LOAD_IMAGE_COLOR);
 
@@ -65,10 +84,27 @@ Mat label(char* filename, Mat prob_table, Mat centers)
     cv::flann::Index kdtree(centers, flann::KDTreeIndexParams(4));
     Mat matches;
     Mat distances;
-    kdtree.knnSearch(blobFeat, matches, distances, 1, flann::SearchParams(32)); 
-    cout << matches << endl;
+    kdtree.knnSearch(blobFeat, matches, distances, 1, flann::SearchParams(32));
 
-    return graphCutImg;
+    cout << matches << endl; 
+    
+    /* Iterate through the image segments, look up probability, and label the image */
+    for (int i = 0; i < features.size(); i++) {
+        int word_id = blob_words[matches.at<int>(0,i)];
+        String word = "null";
+        if (word_id >= 0.0 && word_id < img_labels.size()) {
+            word = img_labels[word_id];
+        }
+        int x_cen = features[i]->centroid[0];
+        int y_cen = features[i]->centroid[1];
+        drawTextBox(s_image, word, Scalar(255,255,255),Scalar(0,0,0), Point(x_cen,y_cen));
+    }
+    
+    /* Scale up image */
+    scale = IMAGE_DISPLAY_WIDTH/image.cols;
+    resize(s_image, image, Size(0,0), scale, scale, INTER_CUBIC); 
+
+    return image;
 }
 
 int main(int argc, char** argv)

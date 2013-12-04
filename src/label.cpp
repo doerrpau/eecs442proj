@@ -62,10 +62,11 @@ Mat label(char* filename, Mat prob_table, Mat centers)
     Mat blobFeat = vectorizeFeatures(features);
 
     /* Use K-D tree / nearest neighbors to vector quantize features based on training data */
-    flann::Index_<cv::L2<float> >::Index kdtree(centers, flann::KDTreeIndexParams(4));
+    cv::flann::Index kdtree(centers, flann::KDTreeIndexParams(4));
     Mat matches;
     Mat distances;
     kdtree.knnSearch(blobFeat, matches, distances, 1, flann::SearchParams(32)); 
+    cout << matches << endl;
 
     return graphCutImg;
 }
@@ -153,7 +154,6 @@ int main(int argc, char** argv)
     /* Load kmeans center table */
     Mat centers;
     readMat(centers, center_mat);
-    cout << centers << endl;
 
     /* Label the image */
     Mat l_img = label(in_image, probTable, centers);

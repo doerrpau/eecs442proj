@@ -46,11 +46,9 @@ struct BlobFeat {
     int imgId;
 };
 
-/* Use k-means to vector quantize the segment features into k groups */
-/* The k groups can then be used in a probability table */
-Mat blobVectorization(vector<BlobFeat*> &in, int k)
+/* Format the vector of BlobFeat into a matrix for processing */
+Mat vectorizeFeatures(vector<BlobFeat*> &in) 
 {
-    /* Format the segment features for k-means */
     Mat blobFeat = Mat::zeros(in.size(), BlobFeat::num_feat, CV_32F);
     for (int i = 0; i < in.size(); i++) {
         blobFeat.at<float>(i,0) = (in[i]->size);
@@ -70,15 +68,23 @@ Mat blobVectorization(vector<BlobFeat*> &in, int k)
         }
     }
     
+    return blobFeat;
+}
+
+/* Use k-means to vector quantize the segment features into k groups */
+/* The k groups can then be used in a probability table */
+void blobVectorization(vector<BlobFeat*> &in, int k, Mat &labels, Mat &centers)
+{
+    /* Format the segment features for k-means */
+    Mat blobFeat = vectorizeFeatures(in);
+
     /* k-means to vector quantize */  
-    Mat labels;
     int attempts = 5;
-    Mat centers;
     TermCriteria tc(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS, 10000, 0.0001);
     kmeans(blobFeat, k, labels, tc, attempts, KMEANS_PP_CENTERS, centers);
 
     /* return blob categorization */
-    return labels;
+    return;
 };
 
 /* Compute feature values for all the segmented in the input image */

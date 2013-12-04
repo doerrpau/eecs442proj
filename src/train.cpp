@@ -47,7 +47,8 @@ int num_images = 0;
 /* k-means to vector quantize the segments into smaller set of blobs */
 /* use keywords recorded for each blob to find probability table */
 // Also does EM to get probability table
-Mat train(char* img_dir)
+// Also return feature kmeans centers to classify test image blobs
+Mat train(char* img_dir, Mat &probTable, Mat &centers)
 {
 
     /* Vector of all segment features */
@@ -142,7 +143,8 @@ Mat train(char* img_dir)
     }
 
     /* Do vector quantization on all_feats */
-    Mat labels = blobVectorization(all_feats, vq_k); /* labels is CV_32S */
+    Mat labels;
+    blobVectorization(all_feats, vq_k, labels, centers); /* labels is CV_32S */
 
     /* Use features and labels to create image data structures */
     vector<imgData> img_data;
@@ -174,7 +176,7 @@ Mat train(char* img_dir)
 
      //=======================||[ EM Algorithm ]||============================//
     //Mat result;
-    Mat probTable = Mat::zeros( img_labels.size(), vq_k,CV_32F);
+    probTable = Mat::zeros( img_labels.size(), vq_k,CV_32F);
     double smallChange = 10^(-4);
     double change = 10000;
     
@@ -183,7 +185,6 @@ Mat train(char* img_dir)
 
     // Get words and blobs for each image
     N =  img_data.size();
-        cout << "debug" <<"\n";
    
     //============================ Init =======================================
     // Go over each image and fill in initial probabilities
@@ -235,12 +236,8 @@ Mat train(char* img_dir)
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
-            pTemp[n] = new double*[m];
-
             for(int j=0;j<m;j++)
             {
-                pTemp[n][j] = new double[l];
-
                 for(int i=0;i<l;i++)
                 {
                     //for each word/blob
@@ -430,13 +427,14 @@ int main(int argc, char** argv)
     int flag_train = 0;
     char *img_dir = NULL;
     char *prob_table = NULL;
+    char *center_table = NULL;
     int c;
     int index;
  
     opterr = 0;
  
     /* Process Arguments */
-    while ((c = getopt(argc, argv, "hd:p:")) != -1) {
+    while ((c = getopt(argc, argv, "hd:p:c:")) != -1) {
         switch (c) {
            case 'h':
                printf("Help/usage\n");
@@ -447,10 +445,15 @@ int main(int argc, char** argv)
            case 'p':
                prob_table = optarg;
                break;
+           case 'c':
+               center_table = optarg;
+               break;
            case '?':
                if (optopt == 'd')
                    fprintf (stderr, "Option -%c requires directory path argument.\n", optopt);
                if (optopt == 'p')
+                   fprintf (stderr, "Option -%c requires output file path argument.\n", optopt);
+               if (optopt == 'c')
                    fprintf (stderr, "Option -%c requires output file path argument.\n", optopt);
                else if (isprint (optopt))
                    fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -478,12 +481,21 @@ int main(int argc, char** argv)
         printf("Specify location of the outputted probability table using -p option\n");
         return 1;
     }
+    
+    if (center_table == NULL) {
+        printf("No kmeans centers output location specified, quitting.\n");
+        printf("Specify location using -c option\n");
+        return 1;
+    }
+
+    Mat centers, ptable;
 
     /* Use training images to train the algorithm */
-    Mat ptable = train(img_dir);
+    train(img_dir, ptable, centers);
 
-    /* Save the probability table */
+    /* Save the probability table and kmeans centers*/
     storeTable(ptable, img_labels, prob_table);
+    storeMat(centers, center_table);
 
     return 0;
 }

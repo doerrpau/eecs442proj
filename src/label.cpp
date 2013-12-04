@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <cstdio>
 #include "segment.h"
+#include "table_io.h"
+#include "blob_token.h"
 
 using namespace std;
 using namespace cv;
@@ -21,6 +23,12 @@ int gs_min = 400;
 /* Vector quantization parameters */
 int vq_k = 100;
 
+/* Feature computation parameters */
+int seg_min_size = 150;
+
+/* Word Dictionary learned from training data set */
+vector<string> img_labels;
+
 void drawTextBox(Mat img, String text, Scalar bgColor,Scalar fgColor, Point coords)
 {
     int scale = 1;
@@ -32,7 +40,7 @@ void drawTextBox(Mat img, String text, Scalar bgColor,Scalar fgColor, Point coor
     putText(img, text, Point(coords.x+5,coords.y+25), FONT_HERSHEY_TRIPLEX, scale, fgColor,2, 8,false);
 }
 
-Mat label(char* filename, char* prob_table)
+Mat label(char* filename, Mat prob_table, Mat centers)
 {
     /* Load the image */
     Mat image = imread(filename, CV_LOAD_IMAGE_COLOR);
@@ -42,13 +50,22 @@ Mat label(char* filename, char* prob_table)
     Mat s_image;
     double scale = IMAGE_WIDTH/image.cols;
     resize(image, s_image, Size(0,0), scale, scale, INTER_AREA); 
-
+    
     /* graph cut segmentation on the image */
     Mat graphCutImg = doGraphCut(s_image, gs_sigma, gs_k, gs_min);
-    /* Upscale images */
-    scale = IMAGE_DISPLAY_WIDTH/graphCutImg.cols;
-    resize(graphCutImg, graphCutImg, Size(0,0), scale, scale);
-    resize(s_image, s_image, Size(0,0), scale, scale);
+
+    /* Get segment features using segmented image */
+    vector<BlobFeat*> features = 
+        getBlobFeatures(s_image, graphCutImg, seg_min_size, vector<int>(), 0);
+
+    /* Put blob features into matrix form */
+    Mat blobFeat = vectorizeFeatures(features);
+
+    /* Use K-D tree / nearest neighbors to vector quantize features based on training data */
+    flann::Index_<cv::L2<float> >::Index kdtree(centers, flann::KDTreeIndexParams(4));
+    Mat matches;
+    Mat distances;
+    kdtree.knnSearch(blobFeat, matches, distances, 1, flann::SearchParams(32)); 
 
     return graphCutImg;
 }
@@ -57,6 +74,7 @@ int main(int argc, char** argv)
 {
     char *in_prob_table = NULL;
     char *in_image = NULL;
+    char *center_mat = NULL;
     char *out_image = NULL;
     int c;
     int index;
@@ -64,7 +82,7 @@ int main(int argc, char** argv)
     opterr = 0;
  
     /* Process Arguments */
-    while ((c = getopt(argc, argv, "hp:i:o:")) != -1) {
+    while ((c = getopt(argc, argv, "hp:i:c:o:")) != -1) {
         switch (c) {
            case 'h':
                printf("Help/usage\n");
@@ -74,6 +92,9 @@ int main(int argc, char** argv)
                break;
            case 'i':
                in_image = optarg;
+               break;
+           case 'c':
+               center_mat = optarg;
                break;
            case 'o':
                out_image = optarg;
@@ -87,6 +108,9 @@ int main(int argc, char** argv)
                        as argument.\n", optopt);
                if (optopt == 'i')
                    fprintf(stderr, "Option -%c requires input image location \
+                       as argument.\n", optopt);
+               if (optopt == 'c')
+                   fprintf(stderr, "Option -%c requires centers mat location \
                        as argument.\n", optopt);
                else if (isprint (optopt))
                    fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -103,23 +127,36 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (*in_prob_table == NULL) {
+    if (in_prob_table == NULL) {
         printf("No probability table, quitting.\n");
         printf("Please generate the probability table using train.\
                 Provide the table as an argument to this program with -p\n");
         return 1;
     }
 
-    if (*in_image == NULL) {
+    if (in_image == NULL) {
         printf("No input image, quitting.\n");
         printf("Please provide an input image to label with -i\n");
         return 1;
     }
+    
+    if (center_mat == NULL) {
+        printf("No kmeans centers, quitting.\n");
+        printf("Please provide file with -c\n");
+        return 1;
+    }
 
     /* Process probability table */
+    Mat probTable;
+    readTable(probTable, img_labels, in_prob_table);
+ 
+    /* Load kmeans center table */
+    Mat centers;
+    readMat(centers, center_mat);
+    cout << centers << endl;
 
     /* Label the image */
-    Mat l_img = label(in_image, in_prob_table);
+    Mat l_img = label(in_image, probTable, centers);
 
     /* Save labelled image */
     if (out_image != NULL) {

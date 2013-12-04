@@ -231,27 +231,28 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
 
         for(int n=0;n<N;n++)
         {
-            sumP = 0;//for each image
+            
 
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
             for(int j=0;j<m;j++)
             {
+                sumP = 0;//for each word
                 for(int i=0;i<l;i++)
                 {
                     //for each word/blob
                     pTemp[n][j][i] = img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
                     sumP+=pTemp[n][j][i];
                 }
-            }
-            for(int j=0;j<m;j++)
-            {
+
+                // Normalize p_tild(a_nj|w_nj,b_nj,old params)
+                // for each word
                 for(int i=0;i<l;i++)
                 {
-                    // Normalize p_tild(a_nj|w_nj,b_nj,old params)
+                    
                     pTemp[n][j][i]/=sumP;
-                }
+                }   
             }
         }
         //============================ End E Step =================================//
@@ -309,7 +310,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         // in same image...may just be unique assignment
         for(int n=0;n<N;n++)
         {
-            sumT=0;
+            
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
@@ -344,16 +345,23 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                         }
                         img_data[n].tTable[j][i]=sumP;//at end of images loop
                     }
-                    sumT+=sumP;
                 }
             }
 
             //for each word/blob pair
-            for(int j=0;j<img_data[n].words.size();j++)
+            // Normalize t_tild(w_nj=w*|b_ni=b*) over each blob in image
+            // Hold the blob and iterate over the words
+            for(int i=0;i<img_data[n].blobs.size();i++)
             {
-                for(int i=0;i<img_data[n].blobs.size();i++)
+                sumT=0;
+                for(int j=0;j<img_data[n].words.size();j++)    
                 {
-                    // Normalize t_tild(w_nj=w*|b_ni=b*) over each image
+                    sumT+=img_data[n].tTable[j][i];
+                }
+
+                //Normalize
+                for(int j=0;j<img_data[n].words.size();j++)    
+                {
                     img_data[n].tTable[j][i]/=sumT;
                 }
             }

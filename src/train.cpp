@@ -180,8 +180,8 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
     double smallChange = 10^(-4);
     double change = 10000;
     
-    int iter,N,l,m = 0;
-    double sumP,sumT=0;
+    int iter=0,N=0,l=0,m=0;
+    double sumP=0,sumT=0;
 
     // Get words and blobs for each image
     N =  img_data.size();
@@ -232,7 +232,6 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         for(int n=0;n<N;n++)
         {
             
-
             m = img_data[n].words.size();
             l = img_data[n].blobs.size();
 
@@ -252,6 +251,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                 {
                     
                     pTemp[n][j][i]/=sumP;
+                    //cout << pTemp[n][j][i] << endl;
                 }   
             }
         }
@@ -390,7 +390,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
     cout << "Change after iteration: " <<change <<"\n";
 
     // Calculate final probability table
-    double prod1,prod2 = 1;
+    double prod1=1,prod2 = 1;
     double sum1 = 0;
 
     for(int w=0;w<img_labels.size();w++)

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project( main )
+project( train )
 find_package( OpenCV REQUIRED )
 FIND_PACKAGE( Boost 1.53 COMPONENTS system filesystem REQUIRED )
 INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )

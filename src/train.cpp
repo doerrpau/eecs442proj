@@ -195,7 +195,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         {
             for(int i=0;i<img_data[n].blobs.size();i++)
             {
-                img_data[n].pTable[j][i] = (double)img_data[n].words.size()/(double)img_data[n].blobs.size();
+                img_data[n].pTable[j][i] =(double)img_data[n].words.size()/(double)img_data[n].blobs.size();
                 img_data[n].tTable[j][i] = 1.0/(double)img_data[n].words.size();
             }
         }
@@ -223,7 +223,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
 
 
     //================================ EM ======================================
-    while(smallChange < change && iter <2)
+    while(smallChange < change && iter <1)
     {
         //CONVERGENCE OR #ITER?
 
@@ -391,16 +391,12 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         delete[] pTemp[n];
     }
 
-
     cout << "Change after iteration: " <<change <<"\n";
 
     // Calculate final probability table
     double prod1=1,prod2 = 1;
     double sum1 = 0;
     bool pairFound = false;
-
-    cout << "writing to file" << endl;
-
 
     for(int w=0;w<img_labels.size();w++)
     {
@@ -411,7 +407,6 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
             prod1=1;
             for(int n=0;n<N;n++)
             {
-
                 prod2=1;
                 for(int j=0;j<img_data[n].words.size();j++)
                 {
@@ -445,6 +440,21 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         }
     }
 
+    // Normailize probability table....needed?
+    cout <<"Normalizing"<<endl;
+    for(int b=0;b<vq_k;b++)
+    {
+        double sum = 0;
+        for(int w=0;w<img_labels.size();w++)
+        {
+            sum+=probTable.at<float>(w,b);
+        }
+        for(int w=0;w<img_labels.size();w++)
+        {
+            probTable.at<float>(w,b)/=sum;
+        }
+    }
+    cout << "writing to file" << endl;
     //cout << probTable << endl;
     return probTable;
     //return result;

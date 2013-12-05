@@ -141,7 +141,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         cout << ex.what() << endl;
         exit(1);
     }
-
+    cout << "Vector Quantization"<<endl;
     /* Do vector quantization on all_feats */
     Mat labels;
     blobVectorization(all_feats, vq_k, labels, centers); /* labels is CV_32S */
@@ -188,7 +188,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
    
     //============================ Init =======================================
     // Go over each image and fill in initial probabilities
-    
+    cout << "Initializing EM" << endl;
     for(int n=0; n<N; n++)
     {
         for(int j=0;j<img_data[n].words.size();j++)
@@ -220,6 +220,8 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
 
     //============================ End Init ====================================
 
+
+
     //================================ EM ======================================
     while(smallChange < change && iter <2)
     {
@@ -228,7 +230,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         // E Step
         // Calculate p_tild(a_nj|w_nj,b_nj,old params) for each image over all
         // words and blobs
-
+        cout << "E Step" << endl;
         for(int n=0;n<N;n++)
         {
             
@@ -249,13 +251,14 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                 // for each word
                 for(int i=0;i<l;i++)
                 {
-                    
                     pTemp[n][j][i]/=sumP;
                     //cout << pTemp[n][j][i] << endl;
                 }   
             }
         }
         //============================ End E Step =================================//
+
+        cout << "M Step" << endl;
 
         //============================== M Step ===================================//
         // | M.1 |
@@ -278,21 +281,25 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                     for(int nn =0;nn<N;nn++)
                     {
 
+                        //Image size check
+                        if(img_data[nn].words.size()!=m || img_data[nn].blobs.size()!=l)
+                        {
+                            continue;
+                        }
+
                         for(int jj=0;jj<img_data[nn].words.size();jj++)
                         {
-                            if(img_data[nn].words.size()!=m)
+                            if(img_data[n].words[j] == img_data[nn].words[jj])
                             {
-                                break;
+                               continue;
                             }
-
                             for(int ii=0;ii<img_data[nn].blobs.size();ii++)
                             {
-                                //loop over conditions
-                                if(img_data[nn].blobs.size()!=l)
+                                if(img_data[n].blobs[i] == img_data[nn].blobs[ii])
                                 {
-                                    continue;
+                                   continue;
                                 }
-                                
+
                                 sumP+=pTemp[nn][jj][ii];    //if same number of words&blobs
                                 countNlm++;             //for each image in set
                                 
@@ -319,7 +326,6 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
             {
                 for(int i=0;i<l;i++)
                 {
-
                     sumP=0;
                     //loop over all images to look for same blob pair
                     for(int nn =0;nn<N;nn++)
@@ -339,11 +345,10 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                                 {
                                     continue;
                                 }
-
                                 sumP+=pTemp[nn][jj][ii];//if word&blob are in image
                             }
                         }
-                        img_data[n].tTable[j][i]=sumP;//at end of images loop
+                        img_data[n].tTable[j][i]+=sumP;//at end of images loop
                     }
                 }
             }
@@ -392,14 +397,21 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
     // Calculate final probability table
     double prod1=1,prod2 = 1;
     double sum1 = 0;
+    bool pairFound = false;
+
+    cout << "writing to file" << endl;
+
 
     for(int w=0;w<img_labels.size();w++)
     {
         for(int b=0;b<vq_k;b++)
         {
+
+            bool pairFound = false;
             prod1=1;
             for(int n=0;n<N;n++)
             {
+
                 prod2=1;
                 for(int j=0;j<img_data[n].words.size();j++)
                 {
@@ -408,18 +420,28 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                     {
                         //If the blob b is in the image, add it to the sum
                         // (it's zero otherwise)
-                        if(b == img_data[n].blobs[j])
+                        if(b == img_data[n].blobs[i] && w == img_data[n].words[j])
                         {
                             //cout << w << " " << n << " " << j << " " << i << endl;
                             sum1+=img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
                         }
                     }
 
-                    prod2*=sum1;
+                    // Ignore images that don't have the word/blob
+                    if(sum1!=0)
+                    {
+                        prod2*=sum1;
+                        pairFound = true;
+                    }
                 }
                 prod1*=prod2;
             }
-            probTable.at<float>(w,b)=prod1;   //Write to probTable matrix
+
+            // If an instance of a word and a blob were found in an image together
+            if(pairFound)
+            {
+                probTable.at<float>(w,b)=prod1;   //Write to probTable matrix
+            }
         }
     }
 

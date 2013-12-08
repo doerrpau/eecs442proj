@@ -36,8 +36,8 @@ void drawTextBox(Mat &img, String text, Scalar bgColor,Scalar fgColor, Point coo
     // Note about locations: putText draws from lower left corner, while rectangle does verticies
     // Note about color: it's BGR, not RGB
 
-    //rectangle(img, coords,Point(coords.x+text.length()*19.5*scale,coords.y+50*scale), bgColor, -1, 8, 0);
-    putText(img, text, Point(coords.x+5,coords.y+25), FONT_HERSHEY_TRIPLEX, scale, fgColor, 1, 8, false);
+    rectangle(img, coords,Point(coords.x+text.length()*19.5*scale,coords.y+30*scale), bgColor, -1, 8, 0);
+    putText(img, text, Point(coords.x+5,coords.y+10), FONT_HERSHEY_TRIPLEX, scale, fgColor, 1, 8, false);
 }
 
 Mat label(char* filename, Mat prob_table, Mat centers)
@@ -55,11 +55,6 @@ Mat label(char* filename, Mat prob_table, Mat centers)
         }
         blob_words.push_back(best_word);
     }
-
-    for (int i = 0; i < blob_words.size(); i++) {
-        cout << blob_words[i] << endl;
-    }
-    cout << img_labels.size() << endl;
 
     /* Load the image */
     Mat image = imread(filename, CV_LOAD_IMAGE_COLOR);
@@ -86,8 +81,6 @@ Mat label(char* filename, Mat prob_table, Mat centers)
     Mat distances;
     kdtree.knnSearch(blobFeat, matches, distances, 1, flann::SearchParams(32));
 
-    cout << matches << endl; 
-    
     /* Iterate through the image segments, look up probability, and label the image */
     for (int i = 0; i < features.size(); i++) {
         int word_id = blob_words[matches.at<int>(0,i)];
@@ -101,7 +94,7 @@ Mat label(char* filename, Mat prob_table, Mat centers)
     }
     
     /* Scale up image */
-    scale = IMAGE_DISPLAY_WIDTH/image.cols;
+    scale = IMAGE_DISPLAY_WIDTH/s_image.cols;
     resize(s_image, image, Size(0,0), scale, scale, INTER_CUBIC); 
 
     return image;

@@ -155,6 +155,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
             if (all_feats[f]->imgId == i) {
                 /* add blob ID to current image */
                 img_data[i].blobs.push_back(labels.at<int>(f,0));
+                
                 /* add word IDs to current image */
                 if (img_data[i].words.empty()) {
                     img_data[i].words.insert(img_data[i].words.end(), 
@@ -223,7 +224,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
 
 
     //================================ EM ======================================
-    while(smallChange < change && iter <1)
+    while(smallChange < change && iter < 100)
     {
         //CONVERGENCE OR #ITER?
 
@@ -348,8 +349,9 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                                 sumP+=pTemp[nn][jj][ii];//if word&blob are in image
                             }
                         }
-                        img_data[n].tTable[j][i]+=sumP;//at end of images loop
                     }
+                    /****************************************************/
+                    img_data[n].tTable[j][i]+=sumP;//at end of images loop
                 }
             }
 
@@ -405,28 +407,30 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
 
             bool pairFound = false;
             prod1=1;
+            sum1=0;
             for(int n=0;n<N;n++)
             {
                 prod2=1;
                 for(int j=0;j<img_data[n].words.size();j++)
                 {
-                    sum1=0;
                     for(int i=0;i<img_data[n].blobs.size();i++)
                     {
                         //If the blob b is in the image, add it to the sum
                         // (it's zero otherwise)
                         if(b == img_data[n].blobs[i] && w == img_data[n].words[j])
                         {
-                            //cout << w << " " << n << " " << j << " " << i << endl;
+                            //cout << img_labels[w] << " image:" << n << " blob:" << i << " prob:" << 
+                            //    img_data[n].pTable[j][i]*img_data[n].tTable[j][i] << endl;
                             sum1+=img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
+                            pairFound = true;
                         }
                     }
 
                     // Ignore images that don't have the word/blob
-                    if(sum1!=0)
+                    if(pairFound)
                     {
-                        prod2*=sum1;
-                        pairFound = true;
+                        //cout << img_labels[w] << ": " << sum1 << endl;
+                        //prod2*=sum1;
                     }
                 }
                 prod1*=prod2;
@@ -435,7 +439,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
             // If an instance of a word and a blob were found in an image together
             if(pairFound)
             {
-                probTable.at<float>(w,b)=prod1;   //Write to probTable matrix
+                probTable.at<float>(w,b)=sum1;   //Write to probTable matrix
             }
         }
     }
@@ -451,7 +455,9 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         }
         for(int w=0;w<img_labels.size();w++)
         {
-            probTable.at<float>(w,b)/=sum;
+            if (sum != 0) {
+                probTable.at<float>(w,b)/=sum;
+            }
         }
     }
     cout << "writing to file" << endl;

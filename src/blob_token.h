@@ -46,23 +46,38 @@ struct BlobFeat {
     int imgId;
 };
 
+/* Weights for all of the image region features for kmeans calculation */
+/* If left unweighted, features with larger magnitudes, like size, have far too much weight */
+/* Weights are in the order that features appear in kmeans vector */
+static float feat_weight[] = {1.0/8704.0,
+                              1.0/178.2,
+                              1.0/178.8, 
+                              1.0/44.8, 
+                              1.0/121.6, 
+                              1.0/123.8, 
+                              1.0/97.2, 
+                              1.0/21.3,
+                              1.0/22.4, 
+                              1.0/25.3, 
+                              1.0/0.0276};
+
 /* Format the vector of BlobFeat into a matrix for processing */
 Mat vectorizeFeatures(vector<BlobFeat*> &in) 
 {
     Mat blobFeat = Mat::zeros(in.size(), BlobFeat::num_feat, CV_32F);
     for (int i = 0; i < in.size(); i++) {
-        blobFeat.at<float>(i,0) = (in[i]->size);
-        blobFeat.at<float>(i,1) = (in[i]->centroid[0]);
-        blobFeat.at<float>(i,2) = (in[i]->centroid[1]);
-        blobFeat.at<float>(i,3) = (in[i]->euc_distance);
-        blobFeat.at<float>(i,4) = (in[i]->avg_col[0]);
-        blobFeat.at<float>(i,5) = (in[i]->avg_col[1]);
-        blobFeat.at<float>(i,6) = (in[i]->avg_col[2]);
-        blobFeat.at<float>(i,7) = (in[i]->std_col[0]);
-        blobFeat.at<float>(i,8) = (in[i]->std_col[1]);
-        blobFeat.at<float>(i,9) = (in[i]->std_col[2]);
-        blobFeat.at<float>(i,10) =(in[i]->compactness);
-        blobFeat.at<float>(i,11) = (float)(in[i]->first_moment);
+        blobFeat.at<float>(i,0) = in[i]->size * feat_weight[0];
+        blobFeat.at<float>(i,1) = in[i]->centroid[0] * feat_weight[1];
+        blobFeat.at<float>(i,2) = in[i]->centroid[1] * feat_weight[2];
+        blobFeat.at<float>(i,3) = in[i]->euc_distance * feat_weight[3];
+        blobFeat.at<float>(i,4) = in[i]->avg_col[0] * feat_weight[4];
+        blobFeat.at<float>(i,5) = in[i]->avg_col[1] * feat_weight[5];
+        blobFeat.at<float>(i,6) = in[i]->avg_col[2] * feat_weight[6];
+        blobFeat.at<float>(i,7) = in[i]->std_col[0] * feat_weight[7];
+        blobFeat.at<float>(i,8) = in[i]->std_col[1] * feat_weight[8];
+        blobFeat.at<float>(i,9) = in[i]->std_col[2] * feat_weight[9];
+        blobFeat.at<float>(i,10) =in[i]->compactness * feat_weight[10];
+        blobFeat.at<float>(i,11) =in[i]->first_moment;
         for (int j = 0; j < 12; j++) {
             blobFeat.at<float>(i,12+j) = (float)(in[i]->avg_orien[j]);
         }

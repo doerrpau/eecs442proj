@@ -22,18 +22,18 @@ const double IMAGE_WIDTH = 360.0;
 const double IMAGE_DISPLAY_WIDTH = 720.0;
 
 /* Efficient graph cut parameters */
-double gs_sigma = 0.5;
-double gs_k = 300.0;
-int gs_min = 400;
+const double gs_sigma = 0.5;
+const double gs_k = 300.0;
+const int gs_min = 400;
 //double gs_sigma = 0.7;
 //double gs_k = 600.0;
 //int gs_min = 600;
 
 /* Vector quantization parameters */
-int vq_k = 150;
+const int vq_k = 300;
 
 /* Feature computation parameters */
-int seg_min_size = 150;
+const int seg_min_size = 1000;
 
 /* Vector of each seen image label */
 /* Location in the array determines numerical ID of label */

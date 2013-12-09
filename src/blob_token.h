@@ -15,6 +15,8 @@
 #define BYTE_VAL 256
 /* Size of each of the 3 dimensions of the color histogram */
 #define CHIST_SIZE 4
+/* Number of bins of the gradient histogram */
+#define GHIST_SIZE 16
 
 /* Structure containing image data for EM */
 struct imgData {
@@ -28,7 +30,7 @@ struct imgData {
 /* Contains set of useful features for distinguishing blobs */
 struct BlobFeat {
     /* number of features in the BlobFeat structure */
-    const static int num_feat = 1 + 2 + 1 + (CHIST_SIZE*CHIST_SIZE*CHIST_SIZE);
+    const static int num_feat = 1 + 2 + 1 + (CHIST_SIZE*CHIST_SIZE*CHIST_SIZE) + GHIST_SIZE;
 
     /* Features */
     int size;
@@ -36,6 +38,7 @@ struct BlobFeat {
     float euc_distance; /* Average Euclidean distance */
     float compactness;
     float col_hist[CHIST_SIZE][CHIST_SIZE][CHIST_SIZE]; /* divide RGB into 4x4x4 and make histogram of colors */
+    float grad_hist[GHIST_SIZE];
 
     /* Coordinates of every pixel in segment */
     vector<int> x_cor;
@@ -55,7 +58,8 @@ static float feat_weight[] = {1.0/8704.0, /* size */
                               2.5/178.2,  /* centroid */
                               1.0/44.8,  /* euc dist */
                               1.0/0.0276, /* compactness */
-                              50.0}; /* color hist */
+                              50.0, /* color hist */
+                              50.0}; /* gradient hist */
 
 
 /* Format the vector of BlobFeat into a matrix for processing */
@@ -75,10 +79,35 @@ Mat vectorizeFeatures(vector<BlobFeat*> &in)
                 }
             }
         }
+        for (int g = 0; g < GHIST_SIZE; g++) {
+            blobFeat.at<float>(i,5+CHIST_SIZE*CHIST_SIZE*CHIST_SIZE+g) = 
+                in[i]->grad_hist[g] * feat_weight[5];
+        }
     }
     
     return blobFeat;
 }
+
+/* Compute image derivative using scharr kernel */
+Mat scharrImage(Mat in)
+{
+    Mat blur;
+
+    /* Scharr operator */
+    GaussianBlur(in, blur, Size(3,3), 0, 0, BORDER_DEFAULT);
+    cvtColor(blur, blur, CV_RGB2GRAY);
+    Mat grad_x, grad_y;
+    Mat abs_grad_x, abs_grad_y;
+    Scharr(blur, grad_x, CV_16S, 1, 0, 1, 0, BORDER_DEFAULT);
+    convertScaleAbs(grad_x, abs_grad_x);
+    Scharr(blur, grad_y, CV_16S, 0, 1, 1, 0, BORDER_DEFAULT);
+    convertScaleAbs(grad_y, abs_grad_y);
+    Mat grad;
+    addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, grad);
+
+    return grad;
+}
+
 
 /* Use k-means to vector quantize the segment features into k groups */
 /* The k groups can then be used in a probability table */
@@ -98,7 +127,7 @@ void blobVectorization(vector<BlobFeat*> &in, int k, Mat &labels, Mat &centers)
 
 /* Compute feature values for all the segmented in the input image */
 /* Returns array of blob feature structures */
-vector<BlobFeat*> getBlobFeatures(Mat &orig_img, Mat &seg_img, int min_size, vector<int> l_ids, int imgId)
+vector<BlobFeat*> getBlobFeatures(Mat orig_img, Mat seg_img, int min_size, vector<int> l_ids, int imgId)
 {
     /* List of the unique segment values */
     /* The segmented image uses a unique (but unknown) value for each segement */
@@ -197,11 +226,24 @@ vector<BlobFeat*> getBlobFeatures(Mat &orig_img, Mat &seg_img, int min_size, vec
             }
         }
         Vec3b pix_col;
-        const int bin_s = BYTE_VAL / CHIST_SIZE; /* size of each color bin */
+        int bin_s = BYTE_VAL / CHIST_SIZE; /* size of each color bin */
         for (int k = 0; k < features[i]->size; k++) {
             pix_col = orig_img.at<Vec3b>(features[i]->y_cor[k], features[i]->x_cor[k]);
             features[i]->col_hist[pix_col[0]/bin_s][pix_col[1]/bin_s][pix_col[2]/bin_s] += 
                 1.0 / features[i]->size;
+        }
+
+        /* Compute gradient histogram of the region - normalized by size */
+        Mat grad = scharrImage(orig_img);
+        /* initialize to zero */
+        for (int g = 0; g < GHIST_SIZE; g++) {
+                    features[i]->grad_hist[g] = 0.0;
+        }
+        unsigned char pix_grad;
+        bin_s = BYTE_VAL / GHIST_SIZE;
+        for (int k = 0; k < features[i]->size; k++) {
+            pix_grad = grad.at<unsigned char>(features[i]->y_cor[k], features[i]->x_cor[k]);
+            features[i]->grad_hist[pix_grad/bin_s] += 1.0 / features[i]->size;
         }
    }
 

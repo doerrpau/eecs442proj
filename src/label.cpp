@@ -104,10 +104,11 @@ Mat label(char* filename, Mat prob_table, Mat centers)
     }
     
     /* Scale up image */
+    Mat l_image;
     scale = IMAGE_DISPLAY_WIDTH/s_image.cols;
-    resize(s_image, image, Size(0,0), scale, scale, INTER_CUBIC); 
+    resize(s_image, l_image, Size(0,0), scale, scale, INTER_CUBIC); 
 
-    return image;
+    return l_image;
     //return graphCutImg;
 }
 

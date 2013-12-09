@@ -178,7 +178,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
      //=======================||[ EM Algorithm ]||============================//
     //Mat result;
     probTable = Mat::zeros( img_labels.size(), vq_k,CV_32F);
-    double smallChange = 10^(-4);
+    double smallChange = .0025;
     double change = 10000;
     
     int iter=0,N=0,l=0,m=0;
@@ -221,17 +221,16 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
 
     //============================ End Init ====================================
 
-
+    double diff=0,tolDiff=0,oldDiff=0;
 
     //================================ EM ======================================
-    while(smallChange < change && iter < 100)
+    while( (smallChange < change || iter <3) && iter < 500 )
     {
-        //CONVERGENCE OR #ITER?
-
         // E Step
         // Calculate p_tild(a_nj|w_nj,b_nj,old params) for each image over all
         // words and blobs
-        cout << "E Step" << endl;
+
+        tolDiff=0;
         for(int n=0;n<N;n++)
         {
             
@@ -244,6 +243,13 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                 for(int i=0;i<l;i++)
                 {
                     //for each word/blob
+                    if(iter>0)
+                    {
+                        diff = pTemp[n][j][i]-img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
+                        diff*=diff;
+                        tolDiff+=diff;
+                    }
+
                     pTemp[n][j][i] = img_data[n].pTable[j][i]*img_data[n].tTable[j][i];
                     sumP+=pTemp[n][j][i];
                 }
@@ -257,9 +263,11 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
                 }   
             }
         }
+
+        change = abs(tolDiff-oldDiff);
+        oldDiff = tolDiff;
         //============================ End E Step =================================//
 
-        cout << "M Step" << endl;
 
         //============================== M Step ===================================//
         // | M.1 |
@@ -376,8 +384,10 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         }
         //================================ End M Step ===============================//
         iter++;
+        cout << "Iteration: "<<iter << "\r";
     }
 
+    cout << endl<<"Final Difference= " << change << " Iterations = "<< iter << endl;
     /* Delete pTemp */
     for(int n=0;n<N;n++)
     {
@@ -392,8 +402,6 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
 
         delete[] pTemp[n];
     }
-
-    cout << "Change after iteration: " <<change <<"\n";
 
     // Calculate final probability table
     double prod1=1,prod2 = 1;

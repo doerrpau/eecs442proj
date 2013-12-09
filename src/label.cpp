@@ -16,15 +16,17 @@ const double IMAGE_WIDTH = 360.0;
 const double IMAGE_DISPLAY_WIDTH = 720.0;
 
 /* Efficient graph cut parameters */
-double gs_sigma = 0.5;
-double gs_k = 300.0;
-int gs_min = 400;
-
-/* Vector quantization parameters */
-int vq_k = 100;
+const double gs_sigma = 0.5;
+const double gs_k = 300.0;
+const int gs_min = 400;
 
 /* Feature computation parameters */
-int seg_min_size = 150;
+const int seg_min_size = 1000;
+
+/* Probability Threshold */
+/* If the maximum probability for a blob is less than this, the algorithm will not choose any label */
+/* Can be specified with -t argument */
+double thresh = 0.4;
 
 /* Word Dictionary learned from training data set */
 vector<string> img_labels;
@@ -36,7 +38,7 @@ void drawTextBox(Mat &img, String text, Scalar bgColor,Scalar fgColor, Point coo
     // Note about locations: putText draws from lower left corner, while rectangle does verticies
     // Note about color: it's BGR, not RGB
 
-    rectangle(img, coords,Point(coords.x+text.length()*19.5*scale,coords.y+30*scale), bgColor, -1, 8, 0);
+    rectangle(img, coords,Point(coords.x+text.length()*23.0*scale,coords.y+30*scale), bgColor, -1, 8, 0);
     putText(img, text, Point(coords.x+5,coords.y+10), FONT_HERSHEY_TRIPLEX, scale, fgColor, 1, 8, false);
 }
 
@@ -45,7 +47,7 @@ Mat label(char* filename, Mat prob_table, Mat centers)
     /* Store highest probability word for each blob type for labeling use */
     vector<int> blob_words;
     for (int b = 0; b < prob_table.cols; b++) {
-        double max_prob = 0.0;
+        double max_prob = thresh;
         int best_word = -1;
         for (int w = 0; w < prob_table.rows; w++) {
             if (prob_table.at<float>(w, b) > max_prob) {
@@ -80,12 +82,20 @@ Mat label(char* filename, Mat prob_table, Mat centers)
     Mat matches;
     Mat distances;
     kdtree.knnSearch(blobFeat, matches, distances, 1, flann::SearchParams(32));
+    
+    /* Mark the segmentation on the original image */
+    Mat canny_img;
+    Canny(graphCutImg, canny_img, 100, 200, 3);
+    vector<vector<Point> > contours;
+    findContours(canny_img, contours, cv::RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+    Scalar white = Scalar(255, 255, 255);
+    drawContours(s_image, contours, -1, white, 1, 8);
 
     /* Iterate through the image segments, look up probability, and label the image */
     for (int i = 0; i < features.size(); i++) {
         int word_id = blob_words[matches.at<int>(0,i)];
         String word = "null";
-        if (word_id >= 0.0 && word_id < img_labels.size()) {
+        if (word_id >= 0 && word_id < img_labels.size()) {
             word = img_labels[word_id];
         }
         int x_cen = features[i]->centroid[0];
@@ -98,6 +108,7 @@ Mat label(char* filename, Mat prob_table, Mat centers)
     resize(s_image, image, Size(0,0), scale, scale, INTER_CUBIC); 
 
     return image;
+    //return graphCutImg;
 }
 
 int main(int argc, char** argv)
@@ -112,7 +123,7 @@ int main(int argc, char** argv)
     opterr = 0;
  
     /* Process Arguments */
-    while ((c = getopt(argc, argv, "hp:i:c:o:")) != -1) {
+    while ((c = getopt(argc, argv, "hp:i:c:o:t:")) != -1) {
         switch (c) {
            case 'h':
                printf("Help/usage\n");
@@ -128,6 +139,9 @@ int main(int argc, char** argv)
                break;
            case 'o':
                out_image = optarg;
+               break;
+           case 't':
+               thresh = atof(optarg);
                break;
            case '?':
                if (optopt == 'p')

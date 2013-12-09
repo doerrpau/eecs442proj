@@ -11,6 +11,11 @@
 #ifndef BLOB_TOKEN_H
 #define BLOB_TOKEN_H
 
+/* Number of values of a byte */
+#define BYTE_VAL 256
+/* Size of each of the 3 dimensions of the color histogram */
+#define CHIST_SIZE 4
+
 /* Structure containing image data for EM */
 struct imgData {
     vector<int> blobs; /* blob IDs */
@@ -23,17 +28,14 @@ struct imgData {
 /* Contains set of useful features for distinguishing blobs */
 struct BlobFeat {
     /* number of features in the BlobFeat structure */
-    const static int num_feat = 24;
+    const static int num_feat = 1 + 2 + 1 + (CHIST_SIZE*CHIST_SIZE*CHIST_SIZE);
 
     /* Features */
     int size;
     float centroid[2];
     float euc_distance; /* Average Euclidean distance */
-    float avg_col[3]; /* BGR color (0-255) */
-    float std_col[3]; /* Standard Deviation of BGR color */
     float compactness;
-    float first_moment;
-    float avg_orien[12];
+    float col_hist[CHIST_SIZE][CHIST_SIZE][CHIST_SIZE]; /* divide RGB into 4x4x4 and make histogram of colors */
 
     /* Coordinates of every pixel in segment */
     vector<int> x_cor;
@@ -49,17 +51,12 @@ struct BlobFeat {
 /* Weights for all of the image region features for kmeans calculation */
 /* If left unweighted, features with larger magnitudes, like size, have far too much weight */
 /* Weights are in the order that features appear in kmeans vector */
-static float feat_weight[] = {1.0/8704.0,
-                              1.0/178.2,
-                              1.0/178.8, 
-                              1.0/44.8, 
-                              1.0/121.6, 
-                              1.0/123.8, 
-                              1.0/97.2, 
-                              1.0/21.3,
-                              1.0/22.4, 
-                              1.0/25.3, 
-                              1.0/0.0276};
+static float feat_weight[] = {1.0/8704.0, /* size */
+                              2.5/178.2,  /* centroid */
+                              1.0/44.8,  /* euc dist */
+                              1.0/0.0276, /* compactness */
+                              50.0}; /* color hist */
+
 
 /* Format the vector of BlobFeat into a matrix for processing */
 Mat vectorizeFeatures(vector<BlobFeat*> &in) 
@@ -68,18 +65,15 @@ Mat vectorizeFeatures(vector<BlobFeat*> &in)
     for (int i = 0; i < in.size(); i++) {
         blobFeat.at<float>(i,0) = in[i]->size * feat_weight[0];
         blobFeat.at<float>(i,1) = in[i]->centroid[0] * feat_weight[1];
-        blobFeat.at<float>(i,2) = in[i]->centroid[1] * feat_weight[2];
-        blobFeat.at<float>(i,3) = in[i]->euc_distance * feat_weight[3];
-        blobFeat.at<float>(i,4) = in[i]->avg_col[0] * feat_weight[4];
-        blobFeat.at<float>(i,5) = in[i]->avg_col[1] * feat_weight[5];
-        blobFeat.at<float>(i,6) = in[i]->avg_col[2] * feat_weight[6];
-        blobFeat.at<float>(i,7) = in[i]->std_col[0] * feat_weight[7];
-        blobFeat.at<float>(i,8) = in[i]->std_col[1] * feat_weight[8];
-        blobFeat.at<float>(i,9) = in[i]->std_col[2] * feat_weight[9];
-        blobFeat.at<float>(i,10) =in[i]->compactness * feat_weight[10];
-        blobFeat.at<float>(i,11) =in[i]->first_moment;
-        for (int j = 0; j < 12; j++) {
-            blobFeat.at<float>(i,12+j) = (float)(in[i]->avg_orien[j]);
+        blobFeat.at<float>(i,2) = in[i]->centroid[1] * feat_weight[1];
+        blobFeat.at<float>(i,3) = in[i]->euc_distance * feat_weight[2];
+        blobFeat.at<float>(i,4) =in[i]->compactness * feat_weight[3];
+        for (int b = 0; b < CHIST_SIZE; b++) {
+            for (int g = 0; g < CHIST_SIZE; g++) {
+                for (int r = 0; r < CHIST_SIZE; r++) {
+                    blobFeat.at<float>(i,5+b*16+g*4+r) = in[i]->col_hist[b][g][r] * feat_weight[4];
+                }
+            }
         }
     }
     
@@ -159,13 +153,7 @@ vector<BlobFeat*> getBlobFeatures(Mat &orig_img, Mat &seg_img, int min_size, vec
         
         features[i]->centroid[0] = 0.0;
         features[i]->centroid[1] = 0.0;
-        features[i]->avg_col[0] = 0.0;
-        features[i]->avg_col[1] = 0.0;
-        features[i]->avg_col[2] = 0.0;
-        features[i]->std_col[0] = 0.0;
-        features[i]->std_col[1] = 0.0;
-        features[i]->std_col[2] = 0.0;
-
+       
         /* Compute region centroid */
         for (int k = 0; k < features[i]->size; k++) {
             features[i]->centroid[0] += (double)features[i]->x_cor[k] / (double)features[i]->size;
@@ -179,27 +167,6 @@ vector<BlobFeat*> getBlobFeatures(Mat &orig_img, Mat &seg_img, int min_size, vec
                     pow((double)features[i]->y_cor[k] - features[i]->centroid[1], 2.0)
                     ) / features[i]->size;
         }
-
-        /* Compute average color of the region */
-        Vec3b pix_col;
-
-        for (int k = 0; k < features[i]->size; k++) {
-            pix_col = orig_img.at<Vec3b>(features[i]->y_cor[k], features[i]->x_cor[k]);
-            features[i]->avg_col[0] += (float)pix_col[0] / (float)features[i]->size;
-            features[i]->avg_col[1] += (float)pix_col[1] / (float)features[i]->size;
-            features[i]->avg_col[2] += (float)pix_col[2] / (float)features[i]->size; 
-        }
-        
-        /* Now that we have avg color, compute color std */
-        for (int k = 0; k < features[i]->size; k++) {
-            pix_col = orig_img.at<Vec3b>(features[i]->y_cor[k], features[i]->x_cor[k]);
-            features[i]->std_col[0] += pow((float)features[i]->avg_col[0]-(float)pix_col[0], 2.0);
-            features[i]->std_col[1] += pow((float)features[i]->avg_col[1]-(float)pix_col[1], 2.0);
-            features[i]->std_col[2] += pow((float)features[i]->avg_col[2]-(float)pix_col[2], 2.0);
-        }
-        features[i]->std_col[0] = sqrt(features[i]->std_col[0]/features[i]->size);
-        features[i]->std_col[1] = sqrt(features[i]->std_col[1]/features[i]->size);
-        features[i]->std_col[2] = sqrt(features[i]->std_col[2]/features[i]->size);
 
         /* Compute ratio of region size to boundary length squared (compactness) */
         /* Pseudo-perimeter using a rectangle */
@@ -219,15 +186,24 @@ vector<BlobFeat*> getBlobFeatures(Mat &orig_img, Mat &seg_img, int min_size, vec
         }
         int perimeter = 2*(x_max-x_min) + 2*(y_max-y_min);
         features[i]->compactness = features[i]->size / pow((double)perimeter,2.0);
-
-        /* Average orientational energy */
-        for (int k = 0; k < 12; k++) {
-            features[i]->avg_orien[k] = 1.0;
+ 
+        /* Compute color histogram of the region - normalized by size */
+        /* initialize to zero */
+        for (int b = 0; b < CHIST_SIZE; b++) {
+            for (int g = 0; g < CHIST_SIZE; g++) {
+                for (int r = 0; r < CHIST_SIZE; r++) {
+                    features[i]->col_hist[b][g][r] = 0.0;
+                }
+            }
         }
-
-        /* First moment */
-        features[i]->first_moment = 1.0;
-    }
+        Vec3b pix_col;
+        const int bin_s = BYTE_VAL / CHIST_SIZE; /* size of each color bin */
+        for (int k = 0; k < features[i]->size; k++) {
+            pix_col = orig_img.at<Vec3b>(features[i]->y_cor[k], features[i]->x_cor[k]);
+            features[i]->col_hist[pix_col[0]/bin_s][pix_col[1]/bin_s][pix_col[2]/bin_s] += 
+                1.0 / features[i]->size;
+        }
+   }
 
     return features; 
 }

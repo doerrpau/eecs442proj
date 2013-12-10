@@ -224,7 +224,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
     double diff=0,tolDiff=0,oldDiff=0;
 
     //================================ EM ======================================
-    while( (smallChange < change || iter <3) && iter < 500 )
+    while( (smallChange < change || iter <3) && iter < 5000 )
     {
         // E Step
         // Calculate p_tild(a_nj|w_nj,b_nj,old params) for each image over all
@@ -384,7 +384,7 @@ Mat train(char* img_dir, Mat &probTable, Mat &centers)
         }
         //================================ End M Step ===============================//
         iter++;
-        cout << "Iteration: "<<iter << "\r";
+        cout << "Iteration: "<<iter << "\r" << flush;
     }
 
     cout << endl<<"Final Difference= " << change << " Iterations = "<< iter << endl;

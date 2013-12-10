@@ -30,7 +30,7 @@ struct imgData {
 /* Contains set of useful features for distinguishing blobs */
 struct BlobFeat {
     /* number of features in the BlobFeat structure */
-    const static int num_feat = 1 + 2 + 1 + (CHIST_SIZE*CHIST_SIZE*CHIST_SIZE) + GHIST_SIZE;
+    const static int num_feat = 1 + 2 + 1 + 1 + (CHIST_SIZE*CHIST_SIZE*CHIST_SIZE) + GHIST_SIZE;
 
     /* Features */
     int size;
